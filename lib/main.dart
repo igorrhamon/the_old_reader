@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:the_old_reader/home_page.dart';
 import 'old_reader_api.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -202,7 +204,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _controller = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   String? _error;
   bool _loading = false;
 
@@ -211,23 +214,59 @@ class _LoginPageState extends State<LoginPage> {
       _loading = true;
       _error = null;
     });
-    final token = _controller.text.trim();
-    if (token.isEmpty) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
       setState(() {
-        _error = 'Informe o token de autenticação.';
+        _error = 'Informe o e-mail e a senha.';
         _loading = false;
       });
       return;
     }
-    final api = OldReaderApi(token);
-    final response = await api.getUserInfo();
-    if (response.statusCode == 200) {
-      if (widget.onLogin != null) {
-        widget.onLogin!(api);
+
+    try {
+      final url = Uri.parse('http://localhost:3000/proxy/accounts/ClientLogin');
+      final body = 'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body,
+      );
+      if (response.statusCode == 200) {
+        final data = response.body;
+        String? token;
+        // Tenta extrair o token do JSON ou do texto
+        try {
+          final json = data.startsWith('{') ? jsonDecode(data) : null;
+          if (json != null && json['Auth'] != null) {
+            token = json['Auth'];
+          }
+        } catch (_) {
+          // fallback para texto plano
+          final match = RegExp(r'Auth=(.+)').firstMatch(data);
+          if (match != null) token = match.group(1);
+        }
+        if (token != null && token.isNotEmpty) {
+          final api = OldReaderApi(token);
+          final userInfo = await api.getUserInfo();
+          if (userInfo.statusCode == 200) {
+            if (widget.onLogin != null) widget.onLogin!(api);
+            return;
+          }
+        }
+        setState(() {
+          _error = 'E-mail ou senha inválidos.';
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Erro ao autenticar: ${response.statusCode}';
+          _loading = false;
+        });
       }
-    } else {
+    } catch (e) {
       setState(() {
-        _error = 'Token inválido ou erro de autenticação.';
+        _error = 'Erro: $e';
         _loading = false;
       });
     }
@@ -249,11 +288,22 @@ class _LoginPageState extends State<LoginPage> {
                 const Text('Login', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 24),
                 TextField(
-                  controller: _controller,
+                  controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Token de autenticação',
+                    labelText: 'E-mail',
                     border: OutlineInputBorder(),
                   ),
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !_loading,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Senha',
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
                   enabled: !_loading,
                 ),
                 const SizedBox(height: 24),
