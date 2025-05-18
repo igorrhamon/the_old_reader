@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 
 class ArticlePage extends StatelessWidget {
   final dynamic article;
@@ -29,12 +31,22 @@ class ArticlePage extends StatelessWidget {
                   child: Text(article['published'], style: Theme.of(context).textTheme.bodySmall),
                 ),
               const SizedBox(height: 16),
-              if (article['summary'] != null)
-                Text(article['summary'], style: Theme.of(context).textTheme.bodyLarge),
-              if (article['content'] != null)
+              if (article['summary'] != null && article['summary'].toString().trim().isNotEmpty)
+                Html(
+                  data: article['summary'],
+                  style: {
+                    "body": Style.fromTextStyle(Theme.of(context).textTheme.bodyLarge!),
+                  },
+                ),
+              if (article['content'] != null && article['content'].toString().trim().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
-                  child: Text(article['content'], style: Theme.of(context).textTheme.bodyLarge),
+                  child: Html(
+                    data: article['content'],
+                    style: {
+                      "body": Style.fromTextStyle(Theme.of(context).textTheme.bodyLarge!),
+                    },
+                  ),
                 ),
             ],
           ),

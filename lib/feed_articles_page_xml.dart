@@ -71,48 +71,60 @@ class _FeedArticlesPageXmlState extends State<FeedArticlesPageXml> {
 
   @override
   Widget build(BuildContext context) {
+    Widget body;
     if (loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (error != null) {
-      return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
-    }
-    if (articles == null || articles!.isEmpty) {
-      return const Center(child: Text('Nenhum artigo encontrado.'));
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: articles!.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final article = articles![index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-              child: const Icon(Icons.article, color: Color(0xFF625B71)),
-            ),
-            title: Text(
-              article['title'] ?? 'Sem título',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              article['author'] ?? '',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.arrow_forward_ios),
-              color: Theme.of(context).colorScheme.primary,
-              onPressed: () => openArticle(context, article),
-            ),
-            onTap: () => openArticle(context, article),
+      body = const Center(child: CircularProgressIndicator());
+    } else if (error != null) {
+      body = Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
+    } else if (articles == null || articles!.isEmpty) {
+      body = const Center(child: Text('Nenhum artigo encontrado.'));
+    } else {
+      body = ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: articles!.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final article = articles![index];
+          return Card(
+            elevation: 2,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          ),
-        );
-      },
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                child: const Icon(Icons.article, color: Color(0xFF625B71)),
+              ),
+              title: Text(
+                article['title'] ?? 'Sem título',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                article['author'] ?? '',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.arrow_forward_ios),
+                color: Theme.of(context).colorScheme.primary,
+                onPressed: () => openArticle(context, article),
+              ),
+              onTap: () => openArticle(context, article),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          );
+        },
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.feed['title'] ?? 'Feed'),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).maybePop(),
+              )
+            : null,
+      ),
+      body: body,
     );
   }
 }
