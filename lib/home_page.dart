@@ -15,7 +15,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<dynamic>? feeds;
-  String? error;
+  String? error;  
   bool loading = true;
 
   @override
@@ -79,46 +79,51 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (error != null) {
-      return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
-    }
-    if (feeds == null || feeds!.isEmpty) {
-      return const Center(child: Text('Nenhum feed encontrado.'));
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: feeds!.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final feed = feeds![index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: const Icon(Icons.rss_feed, color: Color(0xFF6750A4)),
-            ),
-            title: Text(
-              feed['title'] ?? 'Sem título',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              feed['htmlUrl'] ?? feed['id'] ?? '',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.arrow_forward_ios),
-              color: Theme.of(context).colorScheme.primary,
-              onPressed: () => _openFeed(context, feed),
-            ),
-            onTap: () => _openFeed(context, feed),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          ),
+    // Remove o Scaffold e o AppBar, retornando apenas o conteúdo
+    return Builder(
+      builder: (context) {
+        if (loading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (error != null) {
+          return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
+        }
+        if (feeds == null || feeds!.isEmpty) {
+          return const Center(child: Text('Nenhum feed encontrado.'));
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: feeds!.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final feed = feeds![index];
+            return Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: const Icon(Icons.rss_feed, color: Color(0xFF6750A4)),
+                ),
+                title: Text(
+                  feed['title'] ?? 'Sem título',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  feed['htmlUrl'] ?? feed['id'] ?? '',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios),
+                  color: Theme.of(context).colorScheme.primary,
+                  onPressed: () => _openFeed(context, feed),
+                ),
+                onTap: () => _openFeed(context, feed),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            );
+          },
         );
       },
     );

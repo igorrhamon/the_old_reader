@@ -36,7 +36,12 @@ class _MainScaffoldState extends State<MainScaffold> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text('The Old Reader', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.onPrimary)),
+        title: Text(
+          'The Old Reader',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
         centerTitle: true,
         actions: [
           if (isLogged)
@@ -47,90 +52,126 @@ class _MainScaffoldState extends State<MainScaffold> {
               onPressed: () => setState(() => _api = null),
             ),
         ],
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+        iconTheme: IconThemeData(
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
       ),
-      drawer: isLogged
-          ? Drawer(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  DrawerHeader(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    child: Text('The Old Reader', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.onPrimary)),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.rss_feed),
-                    title: const Text('Feeds'),
-                    selected: _selectedIndex == 0,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onTabTapped(0);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.bookmark),
-                    title: const Text('Favoritos'),
-                    selected: _selectedIndex == 1,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onTabTapped(1);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.settings),
-                    title: const Text('Configurações'),
-                    selected: _selectedIndex == 2,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onTabTapped(2);
-                    },
-                  ),
-                ],
-              ),
-            )
-          : null,
-      body: isLogged
-          ? Stack(
-              children: [
-                IndexedStack(
-                  index: _selectedIndex,
+      drawer:
+          isLogged
+              ? Drawer(
+                child: ListView(
+                  padding: EdgeInsets.zero,
                   children: [
-                    HomePage(api: _api!),
-                    const Center(child: Text('Favoritos (em breve)', style: TextStyle(fontSize: 18))),
-                    const Center(child: Text('Configurações (em breve)', style: TextStyle(fontSize: 18))),
+                    DrawerHeader(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      child: Text(
+                        'The Old Reader',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.rss_feed),
+                      title: const Text('Feeds'),
+                      selected: _selectedIndex == 0,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _onTabTapped(0);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.bookmark),
+                      title: const Text('Favoritos'),
+                      selected: _selectedIndex == 1,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _onTabTapped(1);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.settings),
+                      title: const Text('Configurações'),
+                      selected: _selectedIndex == 2,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _onTabTapped(2);
+                      },
+                    ),
                   ],
                 ),
-                if (_selectedIndex == 0)
-                  Positioned(
-                    bottom: 24,
-                    right: 24,
-                    child: FloatingActionButton(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      onPressed: () {
-                        // TODO: ação de adicionar feed
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adicionar feed (em breve)')));
-                      },
-                      tooltip: 'Adicionar feed',
-                      child: const Icon(Icons.add),
-                    ),
+              )
+              : null,
+      body:
+          isLogged
+              ? Stack(
+                children: [
+                  IndexedStack(
+                    index: _selectedIndex,
+                    children: [
+                      HomePage(api: _api!),
+                      const Center(
+                        child: Text(
+                          'Favoritos (em breve)',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                      const Center(
+                        child: Text(
+                          'Configurações (em breve)',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ],
                   ),
-              ],
-            )
-          : LoginPage(onLogin: _onLogin),
-      bottomNavigationBar: isLogged
-          ? NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: _onTabTapped,
-              destinations: const [
-                NavigationDestination(icon: Icon(Icons.rss_feed), label: 'Feeds'),
-                NavigationDestination(icon: Icon(Icons.bookmark), label: 'Favoritos'),
-                NavigationDestination(icon: Icon(Icons.settings), label: 'Configurações'),
-              ],
-            )
-          : null,
+                  if (_selectedIndex == 0)
+                    Positioned(
+                      bottom: 24,
+                      right: 24,
+                      child: FloatingActionButton(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        onPressed: () {
+                          // TODO: ação de adicionar feed
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Adicionar feed (em breve)'),
+                            ),
+                          );
+                        },
+                        tooltip: 'Adicionar feed',
+                        child: const Icon(Icons.add),
+                      ),
+                    ),
+                ],
+              )
+              : LoginPage(onLogin: _onLogin),
+      bottomNavigationBar:
+          isLogged
+              ? NavigationBar(
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: _onTabTapped,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.rss_feed),
+                    label: 'Feeds',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.bookmark),
+                    label: 'Favoritos',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.settings),
+                    label: 'Configurações',
+                  ),
+                ],
+              )
+              : null,
     );
   }
 }
@@ -144,18 +185,21 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _secureStorage = kIsWeb 
-    ? FlutterSecureStorage(
-        webOptions: const WebOptions(
-          dbName: 'FlutterEncryptedStorage',
-          publicKey: 'FlutterSecureStorage',
-          wrapKey: '',
-          wrapKeyIv: '',
-        ),
-      )
-    : FlutterSecureStorage(
-        iOptions: const IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-      );
+  final _secureStorage =
+      kIsWeb
+          ? FlutterSecureStorage(
+            webOptions: const WebOptions(
+              dbName: 'FlutterEncryptedStorage',
+              publicKey: 'FlutterSecureStorage',
+              wrapKey: '',
+              wrapKeyIv: '',
+            ),
+          )
+          : FlutterSecureStorage(
+            iOptions: const IOSOptions(
+              accessibility: KeychainAccessibility.first_unlock,
+            ),
+          );
 
   @override
   void initState() {
@@ -173,6 +217,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _error;
@@ -195,7 +240,8 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final url = Uri.parse('http://localhost:3000/proxy/accounts/ClientLogin');
-      final body = 'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
+      final body =
+          'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -249,13 +295,18 @@ class _LoginPageState extends State<LoginPage> {
       child: Center(
         child: Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Login', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Login',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _emailController,
@@ -281,9 +332,14 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _loading ? null : _login,
-                    child: _loading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Entrar'),
+                    child:
+                        _loading
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Text('Entrar'),
                   ),
                 ),
                 if (_error != null) ...[

@@ -116,13 +116,14 @@ class _FeedArticlesPageXmlState extends State<FeedArticlesPageXml> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.feed['title'] ?? 'Feed'),
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).maybePop(),
-              )
-            : null,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: Text(
+          widget.feed['title'] ?? 'Feed',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+        ),
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
       ),
       body: body,
     );
