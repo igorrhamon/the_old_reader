@@ -57,6 +57,7 @@ class _HomePageState extends State<HomePage> {
   void _openFeed(BuildContext context, dynamic feed) async {
     try {
       final response = await widget.api.getFeedItems(feed['id']);
+      if (!mounted) return;
       if (response.statusCode == 200) {
         Navigator.push(
           context,
@@ -67,6 +68,7 @@ class _HomePageState extends State<HomePage> {
         return;
       }
     } catch (_) {}
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(

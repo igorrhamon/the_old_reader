@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'old_reader_api.dart';
 import 'home_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -143,7 +144,18 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _secureStorage = const FlutterSecureStorage();
+  final _secureStorage = kIsWeb 
+    ? FlutterSecureStorage(
+        webOptions: const WebOptions(
+          dbName: 'FlutterEncryptedStorage',
+          publicKey: 'FlutterSecureStorage',
+          wrapKey: '',
+          wrapKeyIv: '',
+        ),
+      )
+    : FlutterSecureStorage(
+        iOptions: const IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      );
 
   @override
   void initState() {
