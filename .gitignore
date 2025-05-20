@@ -41,3 +41,26 @@ x86/
 # Others
 .history
 .svn/
+android/
+ios/
+macos/
+web/
+windows/
+# Flutter build files
+build/
+# Android Studio
+*.iml
+*.hprof
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+*.xcuserstate
+*.xcuserdata/
+*.xcscheme
+
+# Visual Studio Code
+.vscode/
+# IntelliJ IDEA
+.idea/
+*.iml
+node_modules/
