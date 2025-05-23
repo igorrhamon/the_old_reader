@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'old_reader_api.dart';
-import 'home_page.dart';
+import '../services/old_reader_api.dart';
+import '../pages/home_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -201,6 +201,8 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
 
+  static const _tokenMaxAge = Duration(days: 14);
+
   @override
   void initState() {
     super.initState();
@@ -214,8 +216,14 @@ class _LoginPageState extends State<LoginPage> {
       final userInfo = await api.getUserInfo();
       if (userInfo.statusCode == 200) {
         if (widget.onLogin != null) widget.onLogin!(api);
+        return;
+      } else {
+        // Token inválido, remove do storage
+        await _secureStorage.delete(key: 'auth_token');
+        await _secureStorage.delete(key: 'auth_token_timestamp');
       }
     }
+    // Token ausente ou inválido: não faz auto-login
   }
 
   final _emailController = TextEditingController();
@@ -262,10 +270,15 @@ class _LoginPageState extends State<LoginPage> {
           if (match != null) token = match.group(1);
         }
         if (token != null && token.isNotEmpty) {
-          await _secureStorage.write(key: 'auth_token', value: token);
+          // Verifica se o token é válido antes de salvar
           final api = OldReaderApi(token);
           final userInfo = await api.getUserInfo();
           if (userInfo.statusCode == 200) {
+            await _secureStorage.write(key: 'auth_token', value: token);
+            await _secureStorage.write(
+              key: 'auth_token_timestamp',
+              value: DateTime.now().toIso8601String(),
+            );
             if (widget.onLogin != null) widget.onLogin!(api);
             return;
           }

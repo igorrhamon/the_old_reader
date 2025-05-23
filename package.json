@@ -4,5 +4,9 @@
     "express": "^5.1.0",
     "node-fetch": "^3.3.2",
     "playwright": "^1.52.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.19",
+    "magnitude-test": "^0.1.3"
   }
 }

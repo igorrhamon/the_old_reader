@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:the_old_reader/home_page.dart';
-import 'old_reader_api.dart';
+import 'pages/home_page.dart';
+import 'services/old_reader_api.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'pages/favorites_page.dart';
+import 'pages/login_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -158,7 +161,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                   index: _selectedIndex,
                   children: [
                     HomePage(api: _api!),
-                    const Center(child: Text('Favoritos (em breve)', style: TextStyle(fontSize: 18))),
+                    FavoritesPage(api: _api!),
                     const Center(child: Text('Configurações (em breve)', style: TextStyle(fontSize: 18))),
                   ],
                 ),
@@ -272,59 +275,30 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _onForgotPassword() {
+    // TODO: Implementar ação de esqueci a senha
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funcionalidade de recuperação de senha em breve.')),
+    );
+  }
+
+  void _onSignUp() {
+    // TODO: Implementar ação de cadastro
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funcionalidade de cadastro em breve.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Center(
-        child: Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Login', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'E-mail',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  enabled: !_loading,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Senha',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                  enabled: !_loading,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _loading ? null : _login,
-                    child: _loading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Entrar'),
-                  ),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 16),
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+    return LoginScreen(
+      emailController: _emailController,
+      passwordController: _passwordController,
+      onLogin: _loading ? () {} : _login,
+      loading: _loading,
+      error: _error,
+      onForgotPassword: _onForgotPassword,
+      onSignUp: _onSignUp,
     );
   }
 }
