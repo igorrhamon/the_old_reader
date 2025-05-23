@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:the_old_reader/favorites_page.dart';
+import 'package:the_old_reader/pages/subscriptions_page.dart';
 import '../services/old_reader_api.dart';
 import '../pages/home_page.dart';
 import 'package:http/http.dart' as http;
@@ -94,12 +96,21 @@ class _MainScaffoldState extends State<MainScaffold> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.settings),
-                      title: const Text('Configurações'),
+                      leading: const Icon(Icons.list_alt),
+                      title: const Text('Assinaturas'),
                       selected: _selectedIndex == 2,
                       onTap: () {
                         Navigator.pop(context);
                         _onTabTapped(2);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.settings),
+                      title: const Text('Configurações'),
+                      selected: _selectedIndex == 3,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _onTabTapped(3);
                       },
                     ),
                   ],
@@ -114,12 +125,10 @@ class _MainScaffoldState extends State<MainScaffold> {
                     index: _selectedIndex,
                     children: [
                       HomePage(api: _api!),
-                      const Center(
-                        child: Text(
-                          'Favoritos (em breve)',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
+                      // FavoritosPage
+                      FavoritesPage(api: _api!),
+                      // AssinaturasPage
+                      SubscriptionsPage(api: _api!),
                       const Center(
                         child: Text(
                           'Configurações (em breve)',
@@ -164,6 +173,10 @@ class _MainScaffoldState extends State<MainScaffold> {
                   NavigationDestination(
                     icon: Icon(Icons.bookmark),
                     label: 'Favoritos',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.list_alt),
+                    label: 'Assinaturas',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.settings),

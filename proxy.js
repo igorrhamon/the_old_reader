@@ -1,3 +1,19 @@
+// Proxy para o endpoint web de favoritos (starred posts)
+app.get('/proxy/posts/starred', async (req, res) => {
+  const url = 'https://theoldreader.com/posts/starred?_pjax=%5Bdata-behavior%3Dcontents%5D';
+  const cookies = req.headers['cookie'];
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: cookies ? { 'Cookie': cookies } : {},
+    });
+    const data = await response.text();
+    res.status(response.status).send(data);
+  } catch (err) {
+    console.error(`[GET] Error (starred posts): ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
 // Simple proxy for The Old Reader API to bypass CORS for Flutter Web
 const express = require('express');
 const cors = require('cors');
@@ -59,7 +75,7 @@ app.get(/^\/proxy\/(.*)/, async (req, res) => {
     res.status(response.status).send(data);
   } catch (err) {
     console.error(`[GET] Error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message }); 
   }
 });
 

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -136,7 +135,8 @@ class LoginScreen extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: loading ? null : onLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0B80EE),
+                            backgroundColor: Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
                             ),
@@ -191,18 +191,18 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
             // Keyboard area (mock)
-            const SizedBox(height: 32),
-            Container(
-              height: 180,
-              width: 340,
-              decoration: BoxDecoration(
-                color: Color(0xFFE9EAEC),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(Icons.keyboard, size: 64, color: Color(0xFFB0B4B9)),
-              ),
-            ),
+            // const SizedBox(height: 32),
+            // Container(
+            //   height: 180,
+            //   width: 340,
+            //   decoration: BoxDecoration(
+            //     color: Color(0xFFE9EAEC),
+            //     borderRadius: BorderRadius.circular(12),
+            //   ),
+            //   child: const Center(
+            //     child: Icon(Icons.keyboard, size: 64, color: Color(0xFFB0B4B9)),
+            //   ),
+            // ),
           ],
         ),
       ),
