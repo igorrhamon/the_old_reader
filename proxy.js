@@ -1,3 +1,19 @@
+
+// Simple proxy for The Old Reader API to bypass CORS for Flutter Web
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const API_BASE = 'https://theoldreader.com/reader/api/0';
+const AUTH_BASE = 'https://theoldreader.com';
+
+
 // Proxy para o endpoint web de favoritos (starred posts)
 app.get('/proxy/posts/starred', async (req, res) => {
   const url = 'https://theoldreader.com/posts/starred?_pjax=%5Bdata-behavior%3Dcontents%5D';
@@ -14,21 +30,6 @@ app.get('/proxy/posts/starred', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Simple proxy for The Old Reader API to bypass CORS for Flutter Web
-const express = require('express');
-const cors = require('cors');
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const API_BASE = 'https://theoldreader.com/reader/api/0';
-const AUTH_BASE = 'https://theoldreader.com';
-
-
 
 // Proxy GET requests (Express RegExp route for compatibility)
 app.get(/^\/proxy\/(.*)/, async (req, res) => {

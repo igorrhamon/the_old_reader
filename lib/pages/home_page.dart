@@ -42,7 +42,7 @@ class _HomePageState extends State<HomePage> {
         });
       } else {
         setState(() {
-          error = 'Erro ao carregar feeds ({response.statusCode})';
+          error = 'Erro ao carregar feeds ({response.statusCode})';
           loading = false;
         });
       }
