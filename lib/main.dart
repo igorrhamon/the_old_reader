@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'pages/favorites_page.dart';
 import 'pages/login_screen.dart';
+import 'pages/add_feed_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -164,22 +165,29 @@ class _MainScaffoldState extends State<MainScaffold> {
                     FavoritesPage(api: _api!),
                     const Center(child: Text('Configurações (em breve)', style: TextStyle(fontSize: 18))),
                   ],
-                ),
-                if (_selectedIndex == 0)
-                  Positioned(
-                    bottom: 24,
-                    right: 24,
-                    child: FloatingActionButton(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      onPressed: () {
-                        // TODO: ação de adicionar feed
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adicionar feed (em breve)')));
-                      },
-                      tooltip: 'Adicionar feed',
-                      child: const Icon(Icons.add),
+                ),                  if (_selectedIndex == 0)
+                    Positioned(
+                      bottom: 24,
+                      right: 24,
+                      child: FloatingActionButton(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context, 
+                            MaterialPageRoute(
+                              builder: (context) => AddFeedPage(api: _api!),
+                            ),
+                          );
+                          if (result == true) {
+                            // Refresh feeds if a new feed was added
+                            setState(() {});
+                          }
+                        },
+                        tooltip: 'Adicionar feed',
+                        child: const Icon(Icons.add),
+                      ),
                     ),
-                  ),
               ],
             )
           : LoginPage(onLogin: _onLogin),

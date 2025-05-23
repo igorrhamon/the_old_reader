@@ -16,11 +16,16 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<dynamic>? feeds;
   String? error;  
-  bool loading = true;
-
-  @override
+  bool loading = true;  @override
   void initState() {
     super.initState();
+    _loadFeeds();
+  }
+
+  @override
+  void didUpdateWidget(HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload feeds if they might have changed
     _loadFeeds();
   }
 

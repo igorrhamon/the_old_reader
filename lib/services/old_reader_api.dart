@@ -72,12 +72,24 @@ class OldReaderApi {
   Future<http.Response> exportOpml() async {
     final url = Uri.parse('https://theoldreader.com/reader/subscriptions/export');
     return await http.get(url, headers: _headers());
-  }
-
-  /// Adiciona uma assinatura/feed
+  }  /// Adiciona uma assinatura/feed
   Future<http.Response> addSubscription(String feedUrl) async {
-    final url = Uri.parse('$baseUrl/subscription/quickadd?quickadd=${Uri.encodeComponent(feedUrl)}');
-    return await http.post(url, headers: _headersWithContentType());
+    // IMPORTANTE: O parâmetro quickadd DEVE estar na query string da URL e NÃO no body
+    
+    // Garantimos que a URL do feed seja codificada corretamente
+    final encodedFeedUrl = Uri.encodeComponent(feedUrl);
+    
+    // Constrói a URL com o parâmetro na query string
+    final url = Uri.parse('$baseUrl/subscription/quickadd?quickadd=$encodedFeedUrl');
+    
+    print('URL para adicionar feed: ${url.toString()}');
+    
+    // POST sem body, pois o parâmetro quickadd já está na URL
+    return await http.post(
+      url,
+      headers: _headersWithContentType(),
+      // Importante: NÃO incluir body aqui, a API espera o parâmetro na URL
+    );
   }
 
   /// Edita uma assinatura (título, pasta, etc)
