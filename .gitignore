@@ -65,3 +65,4 @@ build/
 *.iml
 node_modules/
 .env
+FileScopeMCP-tree.json
