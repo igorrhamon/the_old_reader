@@ -27,6 +27,7 @@ FOR /F "tokens=5" %%P IN ('netstat -ano ^| findstr :3000 ^| findstr LISTENING') 
 
 echo.
 echo Verificando dependências...
+cd proxy
 call npm list express >nul 2>nul
 IF %ERRORLEVEL% NEQ 0 (
   echo Instalando express...
@@ -46,6 +47,13 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 echo.
+echo Verificando pasta de logs...
+IF NOT EXIST logs (
+  echo Criando pasta de logs...
+  mkdir logs
+)
+
+echo.
 echo ==========================================================
 echo               PROXY INICIADO NA PORTA 3000
 echo ==========================================================
@@ -62,5 +70,6 @@ echo.
 
 node proxy.js
 
+cd ..
 echo.
 echo Servidor encerrado.

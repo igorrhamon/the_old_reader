@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import '../managers/favorites_manager.dart';
 import '../services/old_reader_api.dart';
 import 'article_page.dart';
 

@@ -66,3 +66,7 @@ build/
 node_modules/
 .env
 FileScopeMCP-tree.json
+pubspec.lock
+proxy.js.new
+proxy.js.bak
+pubspec.lock

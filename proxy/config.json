@@ -1,0 +1,9 @@
+{
+  "proxyPort": 3000,
+  "logLevel": "info",
+  "logDirectory": "logs",
+  "enableCors": true,
+  "enableCompression": true,
+  "oldReaderUrl": "https://theoldreader.com/reader/api/0",
+  "requestTimeout": 30000
+}

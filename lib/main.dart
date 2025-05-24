@@ -13,6 +13,9 @@ void main() {
   // Configure the proxy port
   configureProxy();
   
+  // Initialize the API with the configured proxy
+  OldReaderApi.initializeProxy();
+  
   runApp(const MyApp());
 }
 

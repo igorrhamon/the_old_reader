@@ -95,8 +95,8 @@ if (-not $dependenciesOk) {
 Write-Host "==========================================" -ForegroundColor Blue
 Write-Host "  INICIANDO O PROXY PARA THE OLD READER" -ForegroundColor Blue
 Write-Host "==========================================" -ForegroundColor Blue
-Write-Host "Executando: node proxy.js" -ForegroundColor Cyan
+Write-Host "Executando: node proxy\proxy.js" -ForegroundColor Cyan
 Write-Host "Pressione CTRL+C para encerrar o servidor" -ForegroundColor Yellow
 Write-Host ""
 
-node proxy.js
+node proxy\proxy.js

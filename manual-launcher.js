@@ -13,7 +13,7 @@ console.log('');
 
 // 1. Start the proxy
 console.log('Starting proxy server...');
-const proxy = spawn('node', ['proxy.js'], { 
+const proxy = spawn('node', ['proxy/proxy.js'], { 
   stdio: 'inherit',
   shell: true 
 });

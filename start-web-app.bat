@@ -69,8 +69,15 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 echo.
+echo Verificando pasta de logs do proxy...
+IF NOT EXIST proxy\logs (
+  echo Criando pasta de logs...
+  mkdir proxy\logs
+)
+
+echo.
 echo Iniciando o proxy em uma nova janela...
-start "The Old Reader Proxy" cmd /c "node proxy.js"
+start "The Old Reader Proxy" cmd /c "cd proxy && node proxy.js"
 
 echo.
 echo Aguardando o proxy iniciar (3 segundos)...

@@ -30,7 +30,7 @@ console.log('Created proxy configuration file');
 
 // Start the proxy server
 console.log('Starting proxy server...');
-const proxyProcess = spawn('node', ['proxy.js'], {
+const proxyProcess = spawn('node', ['proxy/proxy.js'], {
   stdio: 'inherit',
   shell: true
 });

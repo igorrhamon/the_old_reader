@@ -146,7 +146,6 @@ class _MainScaffoldState extends State<MainScaffold> {
                         foregroundColor:
                             Theme.of(context).colorScheme.onPrimary,
                         onPressed: () {
-                          // TODO: ação de adicionar feed
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Adicionar feed (em breve)'),
@@ -214,7 +213,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
 
-  static const _tokenMaxAge = Duration(days: 14);
 
   @override
   void initState() {
