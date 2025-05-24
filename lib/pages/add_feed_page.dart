@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import './../services/old_reader_api.dart';
 
 /// This screen allows the user to add a new RSS feed by providing its URL.
@@ -16,6 +17,42 @@ class AddFeedPage extends StatefulWidget {
 }
 
 class _AddFeedPageState extends State<AddFeedPage> {
+  List<String> _categorias = ['Categoria'];
+  String? _categoriaSelecionada;
+  bool _categoriasLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    _fetchCategorias();
+  }
+
+  Future<void> _fetchCategorias() async {
+    setState(() {
+      _categoriasLoading = true;
+    });
+    try {
+      final response = await widget.api.getTags();
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final tags = data['tags'] as List<dynamic>?;
+        if (tags != null) {
+          final nomes = tags
+              .map((tag) => tag['label'] as String?)
+              .where((label) => label != null && label.isNotEmpty)
+              .toList();
+          setState(() {
+            _categorias = ['Categoria', ...nomes.cast<String>()];
+          });
+        }
+      }
+    } catch (e) {
+      // Ignora erro, mantém categorias default
+    } finally {
+      setState(() {
+        _categoriasLoading = false;
+      });
+    }
+  }
   final TextEditingController _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -102,7 +139,8 @@ class _AddFeedPageState extends State<AddFeedPage> {
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [              TextFormField(
+            children: [
+              TextFormField(
                 controller: _urlController,
                 decoration: InputDecoration(
                   labelText: 'URL do Feed',
@@ -125,7 +163,56 @@ class _AddFeedPageState extends State<AddFeedPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16.0),              SizedBox(
+              const SizedBox(height: 16.0),
+
+              // Dropdown de Categoria estilizado
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _categoriasLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : DropdownButtonFormField<String>(
+                        value: _categoriaSelecionada ?? _categorias[0],
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF756a81)),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                        style: const TextStyle(
+                          color: Color(0xFF141216),
+                          fontSize: 16,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        dropdownColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.95),
+                        items: _categorias.map((String categoria) {
+                          return DropdownMenuItem<String>(
+                            value: categoria,
+                            child: Text(categoria, style: const TextStyle(color: Color(0xFF141216))),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _categoriaSelecionada = newValue;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value == _categorias[0]) {
+                            return 'Selecione uma categoria';
+                          }
+                          return null;
+                        },
+                      ),
+              ),
+              const SizedBox(height: 16.0),
+
+              SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
@@ -159,7 +246,8 @@ class _AddFeedPageState extends State<AddFeedPage> {
                           ),
                         ),
                 ),
-              ),              const SizedBox(height: 24.0),
+              ),
+              const SizedBox(height: 24.0),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
