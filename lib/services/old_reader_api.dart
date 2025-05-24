@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class OldReaderApi {
     /// Busca favoritos (starred) via HTML web
@@ -75,12 +76,11 @@ class OldReaderApi {
     // IMPORTANTE: O parâmetro quickadd DEVE estar na query string da URL e NÃO no body
     
     // Garantimos que a URL do feed seja codificada corretamente
-    final encodedFeedUrl = Uri.encodeComponent(feedUrl);
-    
+    final encodedFeedUrl = Uri.encodeComponent(feedUrl);    
     // Constrói a URL com o parâmetro na query string
     final url = Uri.parse('$baseUrl/subscription/quickadd?quickadd=$encodedFeedUrl');
     
-    print('URL para adicionar feed: ${url.toString()}');
+    debugPrint('URL para adicionar feed: ${url.toString()}');
     
     // POST sem body, pois o parâmetro quickadd já está na URL
     return await http.post(
@@ -196,15 +196,14 @@ class OldReaderApi {
     return await http.get(url, headers: _headers());
   }
   
-  // Use o proxy local para evitar CORS no Flutter Web
-  // A porta pode ser alterada para 3001, 3002, etc. se o servidor proxy
+  // Use o proxy local para evitar CORS no Flutter Web  // A porta pode ser alterada para 3001, 3002, etc. se o servidor proxy
   // escolher uma porta alternativa quando 3000 estiver em uso
   static String baseUrl = 'http://localhost:3000/proxy';
   
   // Permite mudar a porta do proxy em tempo de execução
   static void setProxyPort(int port) {
     baseUrl = 'http://localhost:$port/proxy';
-    print('Proxy URL atualizada para: $baseUrl');
+    debugPrint('Proxy URL atualizada para: $baseUrl');
   }
 
   final String authToken;

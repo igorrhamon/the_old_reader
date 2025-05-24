@@ -97,15 +97,29 @@ function getProcessUsingPort(port) {
   });
 }
 
-// Check if a command exists
-function commandExists(command) {
+// Check if a command exists and get its path
+function getCommandPath(command) {
   return new Promise((resolve) => {
     const platform = process.platform;
     const cmd = platform === 'win32' ? 'where' : 'which';
-    const args = platform === 'win32' ? [command] : [command];
     
-    exec(`${cmd} ${command}`, (error) => {
-      resolve(!error);
+    exec(`${cmd} ${command}`, (error, stdout) => {
+      if (error) {
+        resolve(null);      } else {
+        // Get the first line from the output (the path to the command)
+        // Clean the path to remove any control characters (like \r) that might be present
+        const path = stdout.toString().trim().split('\n')[0].trim().replace(/[\r\n]+$/, '');
+        resolve(path);
+      }
+    });
+  });
+}
+
+// Check if a command exists
+function commandExists(command) {
+  return new Promise((resolve) => {
+    getCommandPath(command).then(path => {
+      resolve(!!path);
     });
   });
 }
@@ -395,24 +409,114 @@ void configureProxy() {
     // Continue anyway
   }
   
+  // Import Flutter path configuration
+  let flutterConfig;
+  try {
+    flutterConfig = require('./flutter-config');
+    console.log(`Flutter configuration loaded. Using path: ${flutterConfig.flutterPath}`);
+  } catch (e) {
+    // Config file not found, will use default paths
+    console.log('No Flutter configuration found. Will search for Flutter in PATH.');
+  }
+  
   // Start the Flutter web app
   console.log(`${colors.green}✓${colors.reset} Starting Flutter web app on port ${webPort}...`);
   
   console.log(`\n${colors.bright}${colors.bgBlue}${colors.white} The Old Reader App ${colors.reset}`);
   console.log(`${colors.cyan}Proxy server: ${colors.reset}http://localhost:${proxyPort}`);
-  console.log(`${colors.cyan}Web app: ${colors.reset}http://${WEB_HOSTNAME}:${webPort}`);
-  console.log(`\n${colors.yellow}When the app starts, open your browser and navigate to:${colors.reset}`);
+  console.log(`${colors.cyan}Web app: ${colors.reset}http://${WEB_HOSTNAME}:${webPort}`);  console.log(`\n${colors.yellow}When the app starts, open your browser and navigate to:${colors.reset}`);
   console.log(`${colors.bright}${colors.green}http://${WEB_HOSTNAME}:${webPort}${colors.reset}`);
   console.log(`\n${colors.dim}Press Ctrl+C to stop the app.${colors.reset}\n`);
+    // Check if we have a configured Flutter path first
+  if (flutterConfig && flutterConfig.flutterPath) {
+    console.log(`${colors.green}ℹ${colors.reset} Using configured Flutter path: ${flutterConfig.flutterPath}`);
+      // On Windows, use spawn with shell option for .bat files
+    const isWindows = process.platform === 'win32';
+    const options = isWindows ? { stdio: 'inherit', shell: true } : { stdio: 'inherit' };
+    
+    const flutterProcess = spawn(flutterConfig.flutterPath, [
+      'run',
+      '-d', 'web-server',
+      '--web-port', webPort.toString(),
+      '--web-hostname', WEB_HOSTNAME
+    ], options);
+    
+    return { flutterProcess, webPort };
+  }
   
-  const flutterProcess = spawn('flutter', [
-    'run',
-    '-d', 'web-server',
-    '--web-port', webPort.toString(),
-    '--web-hostname', WEB_HOSTNAME
-  ], { stdio: 'inherit' });
-  
-  return { flutterProcess, webPort };
+  // Otherwise, get the path to Flutter
+  const flutterPath = await getCommandPath('flutter');
+    // If we have a direct path, use it
+  if (flutterPath) {
+    // Ensure the path is clean without any control characters
+    const cleanPath = flutterPath.replace(/[\r\n]+$/, '');
+    console.log(`${colors.green}ℹ${colors.reset} Using Flutter at: ${cleanPath}`);
+      const flutterProcess = spawn(flutterConfig && flutterConfig.flutterPath ? flutterConfig.flutterPath : cleanPath, [
+      'run',
+      '-d', 'web-server',
+      '--web-port', webPort.toString(),
+      '--web-hostname', WEB_HOSTNAME
+    ], { stdio: 'inherit', shell: process.platform === 'win32' });
+    
+    return { flutterProcess, webPort };
+  } else {    // Try common Flutter paths
+    const possiblePaths = [
+      // Windows with .bat extension
+      path.join(process.env.LOCALAPPDATA || '', 'flutter', 'bin', 'flutter.bat'),
+      path.join(process.env.APPDATA || '', 'flutter', 'bin', 'flutter.bat'),
+      'C:\\flutter\\bin\\flutter.bat',
+      'C:\\src\\flutter\\bin\\flutter.bat',
+      path.join(process.env.USERPROFILE || '', 'flutter', 'bin', 'flutter.bat'),
+      path.join(process.env.USERPROFILE || '', 'Documents', 'flutter', 'bin', 'flutter.bat'),
+      path.join(process.env.USERPROFILE || '', 'development', 'flutter', 'bin', 'flutter.bat'),
+      path.join(process.env.USERPROFILE || '', 'sdk', 'flutter', 'bin', 'flutter.bat'),
+      // Windows without .bat extension
+      path.join(process.env.LOCALAPPDATA || '', 'flutter', 'bin', 'flutter'),
+      path.join(process.env.APPDATA || '', 'flutter', 'bin', 'flutter'),
+      'C:\\flutter\\bin\\flutter',
+      'C:\\src\\flutter\\bin\\flutter',
+      path.join(process.env.USERPROFILE || '', 'flutter', 'bin', 'flutter'),
+      path.join(process.env.USERPROFILE || '', 'Documents', 'flutter', 'bin', 'flutter'),
+      path.join(process.env.USERPROFILE || '', 'development', 'flutter', 'bin', 'flutter'),
+      path.join(process.env.USERPROFILE || '', 'sdk', 'flutter', 'bin', 'flutter'),
+      // Linux/macOS
+      '/usr/local/flutter/bin/flutter',
+      '/opt/flutter/bin/flutter',
+      path.join(process.env.HOME || '', 'flutter', 'bin', 'flutter'),
+      path.join(process.env.HOME || '', 'development', 'flutter', 'bin', 'flutter')
+    ];
+    
+    let foundPath = null;
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        foundPath = p;
+        console.log(`${colors.green}✓${colors.reset} Found Flutter at: ${foundPath}`);
+        break;
+      }
+    }      if (foundPath) {
+      // Ensure the path is clean without any control characters
+      const cleanPath = foundPath.replace(/[\r\n]+$/, '');
+      console.log(`${colors.green}ℹ${colors.reset} Using Flutter at: ${cleanPath}`);
+      
+      // On Windows, use spawn with shell option for .bat files
+      const isWindows = process.platform === 'win32';
+      const options = isWindows ? { stdio: 'inherit', shell: true } : { stdio: 'inherit' };
+      
+      const flutterProcess = spawn(flutterConfig && flutterConfig.flutterPath ? flutterConfig.flutterPath : cleanPath, [
+        'run',
+        '-d', 'web-server',
+        '--web-port', webPort.toString(),
+        '--web-hostname', WEB_HOSTNAME
+      ], options);
+      
+      return { flutterProcess, webPort };
+    } else {
+      console.error(`${colors.red}✗${colors.reset} Flutter not found. Please ensure Flutter is installed correctly.`);
+      console.log(`${colors.yellow}!${colors.reset} You can install Flutter from: https://flutter.dev/docs/get-started/install`);
+      console.log(`${colors.yellow}!${colors.reset} After installation, make sure to add Flutter to your PATH.`);
+      process.exit(1);
+    }
+  }
 }
 
 // Clean up temporary files
