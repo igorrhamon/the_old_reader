@@ -1,6 +1,78 @@
 // Simple proxy for The Old Reader API to bypass CORS for Flutter Web
 const express = require("express");
 const cors = require("cors");
+const os = require("os");
+const { exec } = require("child_process");
+const net = require("net");
+
+// Determine if a port is available
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    
+    server.once('error', () => {
+      resolve(false);
+    });
+    
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    
+    server.listen(port);
+  });
+}
+
+// Find an available port starting from the given port
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (port < startPort + 100) { // Try 100 ports
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+    port++;
+  }
+  return null; // No available port found
+}
+
+// Try to identify the process using a port (Windows only)
+function getProcessUsingPort(port) {
+  return new Promise((resolve) => {
+    if (os.platform() !== 'win32') {
+      resolve(null);
+      return;
+    }
+    
+    exec(`netstat -ano | findstr :${port} | findstr LISTENING`, (error, stdout) => {
+      if (error || !stdout) {
+        resolve(null);
+        return;
+      }
+      
+      const match = stdout.match(/LISTENING\s+(\d+)/);
+      if (!match || !match[1]) {
+        resolve(null);
+        return;
+      }
+      
+      const pid = match[1];
+      exec(`tasklist /fi "PID eq ${pid}" /fo csv /nh`, (error, stdout) => {
+        if (error || !stdout) {
+          resolve({ pid });
+          return;
+        }
+        
+        const parts = stdout.split(',');
+        if (parts.length >= 2) {
+          const processName = parts[0].replace(/"/g, '');
+          resolve({ pid, name: processName });
+        } else {
+          resolve({ pid });
+        }
+      });
+    });
+  });
+}
 
 // Verifica se fetch está disponível globalmente (Node.js 18+) 
 // ou se precisa ser importado (Node.js 16 ou anterior)
@@ -36,7 +108,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+let PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -236,13 +308,48 @@ app.post(/^\/proxy\/(.*)/, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Proxy server running on http://localhost:${PORT}`);
-}).on('error', (err) => {
-  console.error(`Erro ao iniciar o servidor: ${err.message}`);
-  if (err.code === 'EADDRINUSE') {
-    console.error(`A porta ${PORT} já está em uso. Por favor, encerre o processo que está usando esta porta ou escolha outra porta.`);
+// Função principal para iniciar o servidor
+async function startServer() {
+  // Verifica se a porta está disponível
+  const isAvailable = await isPortAvailable(PORT);
+  
+  if (!isAvailable) {
+    console.error(`\x1b[31mERRO: A porta ${PORT} já está em uso.\x1b[0m`);
+    
+    // Tenta obter informações sobre o processo
+    const processInfo = await getProcessUsingPort(PORT);
+    if (processInfo) {
+      console.error(`\x1b[33mProcesso usando a porta: ${processInfo.name || 'Desconhecido'} (PID: ${processInfo.pid})\x1b[0m`);
+      console.error(`Para encerrar este processo, execute: taskkill /F /PID ${processInfo.pid}`);
+    }
+    
+    // Tenta encontrar uma porta alternativa
+    const alternativePort = await findAvailablePort(PORT + 1);
+    if (alternativePort) {
+      console.log(`\x1b[33mTentando porta alternativa: ${alternativePort}\x1b[0m`);
+      PORT = alternativePort;
+    } else {
+      console.error(`\x1b[31mNão foi possível encontrar uma porta disponível.\x1b[0m`);
+      console.error(`Por favor, encerre o processo que está usando a porta ${PORT} e tente novamente.`);
+      process.exit(1);
+    }
   }
-});
-// Para rodar o servidor, use o comando:
-// node proxy.js
+  
+  // Inicia o servidor na porta escolhida
+  const server = app.listen(PORT, () => {
+    console.log(`\x1b[32mProxy server running on http://localhost:${PORT}\x1b[0m`);
+    console.log(`\x1b[33mImportante: Se você estiver usando a porta ${PORT}, certifique-se de atualizar a baseUrl no OldReaderApi.dart:\x1b[0m`);
+    console.log(`static const String baseUrl = 'http://localhost:${PORT}/proxy';`);
+  });
+  
+  server.on('error', (err) => {
+    console.error(`Erro ao iniciar o servidor: ${err.message}`);
+    if (err.code === 'EADDRINUSE') {
+      console.error(`A porta ${PORT} já está em uso. Por favor, encerre o processo que está usando esta porta ou escolha outra porta.`);
+    }
+    process.exit(1);
+  });
+}
+
+// Inicia o servidor
+startServer();

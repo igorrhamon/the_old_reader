@@ -7,8 +7,12 @@ import 'dart:convert';
 import 'pages/favorites_page.dart';
 import 'pages/login_screen.dart';
 import 'pages/add_feed_page.dart';
+import 'proxy_config.dart'; // Import the proxy configuration
 
 void main() {
+  // Configure the proxy port
+  configureProxy();
+  
   runApp(const MyApp());
 }
 

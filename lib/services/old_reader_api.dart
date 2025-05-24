@@ -1,5 +1,3 @@
-
-
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -197,8 +195,17 @@ class OldReaderApi {
     final url = Uri.parse('$baseUrl/stream/contents/$feedId?n=20&output=xml');
     return await http.get(url, headers: _headers());
   }
+  
   // Use o proxy local para evitar CORS no Flutter Web
-  static const String baseUrl = 'http://localhost:3000/proxy';
+  // A porta pode ser alterada para 3001, 3002, etc. se o servidor proxy
+  // escolher uma porta alternativa quando 3000 estiver em uso
+  static String baseUrl = 'http://localhost:3000/proxy';
+  
+  // Permite mudar a porta do proxy em tempo de execução
+  static void setProxyPort(int port) {
+    baseUrl = 'http://localhost:$port/proxy';
+    print('Proxy URL atualizada para: $baseUrl');
+  }
 
   final String authToken;
 
