@@ -6,7 +6,31 @@
     "playwright": "^1.52.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@types/node": "^22.15.19",
     "magnitude-test": "^0.1.3"
-  }
+  },
+  "name": "the_old_reader",
+  "version": "1.0.0",
+  "description": "Este projeto é um app Flutter que implementa um cliente para a Old Reader API ([documentação oficial](https://github.com/theoldreader/api)).",
+  "main": "auto-launcher.js",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igorrhamon/the_old_reader.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/igorrhamon/the_old_reader/issues"
+  },
+  "homepage": "https://github.com/igorrhamon/the_old_reader#readme"
 }

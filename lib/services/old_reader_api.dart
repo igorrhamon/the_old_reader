@@ -340,6 +340,180 @@ class OldReaderApi {
     return [];
   }
 
+  /// Extrai categorias (labels) de uma resposta da API de tags
+  List<String> extractCategoriesFromTagsResponse(http.Response response) {
+    if (response.statusCode != 200) {
+      return [];
+    }
+    
+    try {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final List<dynamic>? tags = data['tags'];
+      
+      if (tags == null) {
+        return [];
+      }
+      
+      // Filtrar apenas tags que são categorias (começam com "user/-/label/")
+      final List<String> categories = [];
+      
+      for (var tag in tags) {
+        if (tag is Map && tag.containsKey('id')) {
+          final String tagId = tag['id'];
+          
+          if (tagId.startsWith('user/-/label/')) {
+            // Extrair o nome da categoria do ID da tag
+            final String categoryName = tagId.replaceFirst('user/-/label/', '');
+            if (categoryName.isNotEmpty) {
+              categories.add(categoryName);
+            }
+          }
+        }
+      }
+      
+      return categories;
+    } catch (e) {
+      debugPrint('Erro ao extrair categorias: $e');
+      return [];
+    }
+  }
+
+  /// Busca todas as categorias
+  Future<List<String>> getCategories() async {
+    try {
+      final response = await getTags();
+      return extractCategoriesFromTagsResponse(response);
+    } catch (e) {
+      debugPrint('Erro ao buscar categorias: $e');
+      return [];
+    }
+  }
+
+  /// Adiciona um feed a uma categoria
+  Future<http.Response> addFeedToCategory({
+    required String streamId,
+    required String categoryName,
+  }) async {
+    // Formatar o ID da categoria conforme esperado pela API
+    final String categoryId = 'user/-/label/$categoryName';
+    
+    // Usar o método editSubscription para adicionar a categoria
+    return await editSubscription(
+      streamId: streamId,
+      addLabel: categoryId,
+    );
+  }
+
+  /// Adicionar um feed e opcionalmente atribuir a uma categoria
+  Future<Map<String, dynamic>> addFeedWithCategory({
+    required String feedUrl,
+    String? categoryName,
+  }) async {
+    try {
+      // Primeiro adicionar o feed
+      final addResponse = await addSubscription(feedUrl);
+      
+      if (addResponse.statusCode != 200) {
+        return {
+          'success': false,
+          'error': 'Erro ao adicionar feed: ${addResponse.statusCode}',
+          'response': addResponse,
+        };
+      }
+      
+      // Tentar extrair o streamId da resposta
+      final Map<String, dynamic> responseData = jsonDecode(addResponse.body);
+      
+      // Verificar se há erro na resposta
+      if (responseData.containsKey('error')) {
+        return {
+          'success': false,
+          'error': responseData['error'],
+          'response': addResponse,
+        };
+      }
+      
+      // Verificar se temos o streamId
+      if (!responseData.containsKey('streamId')) {
+        return {
+          'success': true,
+          'warning': 'Feed adicionado, mas não foi possível extrair o streamId',
+          'response': addResponse,
+        };
+      }
+      
+      final String streamId = responseData['streamId'];
+      
+      // Se não tiver categoria, retornar sucesso
+      if (categoryName == null || categoryName.isEmpty) {
+        return {
+          'success': true,
+          'streamId': streamId,
+          'response': addResponse,
+        };
+      }
+      
+      // Adicionar o feed à categoria
+      final categoryResponse = await addFeedToCategory(
+        streamId: streamId,
+        categoryName: categoryName,
+      );
+      
+      if (categoryResponse.statusCode != 200) {
+        return {
+          'success': true,
+          'warning': 'Feed adicionado, mas não foi possível atribuir à categoria',
+          'streamId': streamId,
+          'response': addResponse,
+          'categoryResponse': categoryResponse,
+        };
+      }
+      
+      // Sucesso completo
+      return {
+        'success': true,
+        'streamId': streamId,
+        'response': addResponse,
+        'categoryResponse': categoryResponse,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Erro ao processar requisição: $e',
+      };
+    }
+  }
+
+  /// Cria uma nova categoria
+  Future<http.Response> createCategory(String categoryName) async {
+    // A Old Reader API não tem um endpoint específico para criar categorias.
+    // Categorias são criadas implicitamente quando um feed é atribuído a uma nova categoria.
+    // Podemos usar um truque: editar um feed existente e adicionar a nova categoria.
+    
+    // Primeiro, vamos buscar todas as assinaturas
+    final subsResponse = await getSubscriptions();
+    
+    if (subsResponse.statusCode != 200) {
+      throw Exception('Não foi possível buscar assinaturas para criar categoria');
+    }
+    
+    final Map<String, dynamic> subsData = jsonDecode(subsResponse.body);
+    final List<dynamic>? subscriptions = subsData['subscriptions'];
+    
+    if (subscriptions == null || subscriptions.isEmpty) {
+      throw Exception('Não há assinaturas disponíveis para criar categoria');
+    }
+    
+    // Usar a primeira assinatura para criar a categoria
+    final String streamId = subscriptions[0]['id'];
+    
+    // Adicionar a categoria ao feed
+    return await addFeedToCategory(
+      streamId: streamId,
+      categoryName: categoryName,
+    );
+  }
+
   Map<String, String> _headers() => {
     'Authorization': 'GoogleLogin auth=$authToken',
   };

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import './../services/old_reader_api.dart';
 
 /// This screen allows the user to add a new RSS feed by providing its URL.
@@ -24,46 +23,36 @@ class _AddFeedPageState extends State<AddFeedPage> {
   void initState() {
     super.initState();
     _fetchCategorias();
-  }
-
-  Future<void> _fetchCategorias() async {
+  }  Future<void> _fetchCategorias() async {
     setState(() {
       _categoriasLoading = true;
     });
     try {
-      final response = await widget.api.getTags();
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final tags = data['tags'] as List<dynamic>?;
-        if (tags != null) {
-          final nomes = tags
-              .map((tag) => tag['label'] as String?)
-              .where((label) => label != null && label.isNotEmpty)
-              .toList();
-          setState(() {
-            _categorias = ['Categoria', ...nomes.cast<String>()];
-          });
-        }
-      }
-    } catch (e) {
-      // Ignora erro, mantém categorias default
-    } finally {
-      setState(() {
+      // Usar o novo método getCategories que já retorna a lista de nomes de categorias
+      final List<String> categoriesNames = await widget.api.getCategories();
+      
+      setState(() { 
+        _categorias = ['Categoria', ...categoriesNames];
         _categoriasLoading = false;
       });
+      
+      // Para debugging
+      print('Categorias carregadas: $_categorias');
+    } catch (e) {
+      print('Erro ao carregar categorias: $e');
+      // Ignora erro, mantém categorias default
+      setState(() { _categoriasLoading = false; });
     }
   }
   final TextEditingController _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-
   /// Validates if the given URL is valid.
   bool isValidURL(String url) {
     final Uri? uri = Uri.tryParse(url);
     return uri != null && uri.isAbsolute;
   }
-
-  /// Sends a request to add the new feed to The Old Reader.
+  
   Future<void> _submitFeed() async {
     final String feedUrl = _urlController.text.trim();
 
@@ -75,45 +64,56 @@ class _AddFeedPageState extends State<AddFeedPage> {
       return;
     }
 
+    // Check if a valid category is selected
+    final String? selectedCategory = _categoriaSelecionada;
+    if (selectedCategory == null || selectedCategory == 'Categoria') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecione uma categoria.')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Use the OldReaderApi to add the subscription
-      final response = await widget.api.addSubscription(feedUrl);
-
-      if (response.statusCode == 200) {
-        // Parse the response to check for error messages
-        final responseBody = response.body;
-        if (responseBody.contains("error")) {
-          // The Old Reader API returns error message in the responseBody
-          final errorStartIndex = responseBody.indexOf("error") + 8; // "error":"
-          final errorEndIndex = responseBody.indexOf("\"", errorStartIndex);
-          final errorMessage = responseBody.substring(errorStartIndex, errorEndIndex);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Falha ao adicionar o feed: $errorMessage')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Feed adicionado com sucesso!')),
-          );
-          _urlController.clear();
-          
-          // Return to previous screen
-          if (Navigator.canPop(context)) {
-            Navigator.pop(context, true); // Return true to indicate success
-          }
+      // Usar o novo método addFeedWithCategory que cria o feed e adiciona à categoria em uma única operação
+      final result = await widget.api.addFeedWithCategory(
+        feedUrl: feedUrl,
+        categoryName: selectedCategory,
+      );
+      
+      if (result['success'] == true) {
+        // Feed adicionado com sucesso
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Feed adicionado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _urlController.clear();
+        
+        // Return to previous screen
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context, true); // Return true to indicate success
         }
       } else {
+        // Erro ao adicionar feed
+        final String errorMessage = result['error'] ?? 'Erro desconhecido ao adicionar feed';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Falha ao adicionar o feed. Código: ${response.statusCode}')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao conectar com a API: $error')),
+        SnackBar(
+          content: Text('Erro ao conectar com a API: $error'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() {
