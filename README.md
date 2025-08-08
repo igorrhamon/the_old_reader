@@ -71,6 +71,20 @@ Para gerenciar os logs do proxy, use:
 
 Este script permite visualizar, limpar e arquivar os logs do servidor proxy.
 
+## Testes
+
+Este repositório inclui testes automatizados de login utilizando o [Playwright](https://playwright.dev).
+Para executá-los, é necessário definir as variáveis de ambiente `the_old_reader_email` e `the_old_reader_password`
+com as credenciais da sua conta:
+
+```sh
+export the_old_reader_email="SEU_EMAIL"
+export the_old_reader_password="SUA_SENHA"
+npx playwright test
+```
+
+Se as variáveis não estiverem definidas, o teste será ignorado.
+
 ## Próximos passos
 - Implementar autenticação OAuth
 - Listar feeds e artigos
