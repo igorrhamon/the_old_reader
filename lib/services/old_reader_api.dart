@@ -250,8 +250,11 @@ class OldReaderApi {
     return await http.get(url, headers: _headers());
   }
 
+  // Porta padrão do proxy. Pode ser alterada em tempo de execução
+  static int _proxyPort = 3000;
+
   // Use o proxy local para evitar CORS no Flutter Web
-  // A porta é configurada pelo proxy_config.dart
+  // A baseUrl é construída dinamicamente a partir da porta configurada
   static String baseUrl = '${getProxyBaseUrl()}/proxy';
 
   // Permite mudar a porta do proxy em tempo de execução
@@ -520,10 +523,13 @@ class OldReaderApi {
 
   static getProxyBaseUrl() {
     // Retorna a URL base do proxy configurado
+    // Usa a porta definida em [_proxyPort]
+    // Para Flutter Web usamos localhost. Para Android emulator, localhost no dispositivo aponta para o próprio emulador,
+    // então usamos o endereço especial 10.0.2.2 que referencia a máquina host.
     if (kIsWeb) {
-      return 'http://localhost:3000'; // URL do proxy local para Flutter Web
+      return 'http://localhost:$_proxyPort'; // URL do proxy local para Flutter Web
     } else {
-      return 'http://localhost:3000'; // URL do proxy local para Flutter Mobile/Desktop
+      return 'http://10.0.2.2:$_proxyPort'; // Android emulator -> host machine
     }
   }
 }
