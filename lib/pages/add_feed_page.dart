@@ -7,9 +7,9 @@ class AddFeedPage extends StatefulWidget {
   final OldReaderApi api;
   
   const AddFeedPage({
-    Key? key,
+    super.key,
     required this.api,
-  }) : super(key: key);
+  });
 
   @override
   _AddFeedPageState createState() => _AddFeedPageState();

@@ -127,7 +127,21 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     });
   }
 
-  void _openArticle(BuildContext context, dynamic article) {
+  Future<void> _openArticle(BuildContext context, dynamic article) async {
+    // Pega o ID do artigo
+    final articleId = article['id'];
+    if (articleId != null) {
+      // Marca o artigo como lido
+      try {
+        await widget.api.markAsRead(articleId);
+      } catch (e) {
+        debugPrint('Erro ao marcar artigo como lido: $e');
+      }
+    }
+
+    if (!mounted) return;
+    
+    // Abre a página do artigo
     Navigator.push(
       context,
       MaterialPageRoute(

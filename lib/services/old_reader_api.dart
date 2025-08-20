@@ -233,6 +233,13 @@ class OldReaderApi {
     return await http.post(url, headers: _headersWithContentType(), body: body);
   }
 
+  /// Marca um artigo como lido
+  Future<http.Response> markAsRead(String itemId) async {
+    final url = Uri.parse('$baseUrl/edit-tag');
+    final body = 'i=$itemId&a=user/-/state/com.google/read';
+    return await http.post(url, headers: _headersWithContentType(), body: body);
+  }
+
   Map<String, String> _headersWithContentType() => {
     ..._headers(),
     'Content-Type': 'application/x-www-form-urlencoded',
@@ -525,12 +532,7 @@ class OldReaderApi {
   static getProxyBaseUrl() {
     // Retorna a URL base do proxy configurado
     // Usa a porta definida em [_proxyPort]
-    // Para Flutter Web usamos localhost. Para Android emulator, localhost no dispositivo aponta para o próprio emulador,
-    // então usamos o endereço especial 10.0.2.2 que referencia a máquina host.
-    if (kIsWeb) {
-      return 'http://localhost:$_proxyPort'; // URL do proxy local para Flutter Web
-    } else {
-      return 'http://10.0.2.2:$_proxyPort'; // Android emulator -> host machine
-    }
+    // Com o adb reverse configurado, podemos usar localhost tanto no web quanto no emulador
+    return 'http://localhost:$_proxyPort';
   }
 }

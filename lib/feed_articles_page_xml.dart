@@ -60,7 +60,21 @@ class _FeedArticlesPageXmlState extends State<FeedArticlesPageXml> {
     }
   }
 
-  void openArticle(BuildContext context, Map<String, String> article) {
+  Future<void> openArticle(BuildContext context, Map<String, String> article) async {
+    // Pega o ID do artigo (para XML pode estar em um local diferente)
+    final articleId = article['id'];
+    if (articleId != null) {
+      // Marca o artigo como lido
+      try {
+        await widget.api.markAsRead(articleId);
+      } catch (e) {
+        debugPrint('Erro ao marcar artigo como lido: $e');
+      }
+    }
+
+    if (!mounted) return;
+
+    // Abre a página do artigo
     Navigator.push(
       context,
       MaterialPageRoute(
