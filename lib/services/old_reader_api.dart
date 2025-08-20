@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 class OldReaderApi {
   /// Busca favoritos (starred) via HTML web
   Future<String> getStarredItemsHtml({String? cookies}) async {
-    final url = Uri.parse('http://localhost:3000/proxy/posts/starred');
+    final url = Uri.parse('${getProxyBaseUrl()}/proxy/posts/starred');
     final headers = <String, String>{};
     if (cookies != null) headers['Cookie'] = cookies;
     final resp = await http.get(url, headers: headers);
@@ -260,6 +260,7 @@ class OldReaderApi {
   // Permite mudar a porta do proxy em tempo de execução
   static void setProxyPort(int port) {
     // Atualiza a porta do proxy e a baseUrl
+    _proxyPort = port;
     baseUrl = '${getProxyBaseUrl()}/proxy';
     debugPrint('Proxy URL atualizada para: $baseUrl');
   }
