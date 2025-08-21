@@ -1,20 +1,14 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
-// Import the proxy configuration
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class OldReaderApi {
-  /// Busca favoritos (starred) via HTML web
-  Future<String> getStarredItemsHtml({String? cookies}) async {
-    final url = Uri.parse('${getProxyBaseUrl()}/proxy/posts/starred');
-    final headers = <String, String>{};
-    if (cookies != null) headers['Cookie'] = cookies;
-    final resp = await http.get(url, headers: headers);
-    if (resp.statusCode == 200) {
-      return resp.body;
-    }
-    throw Exception('Erro ao buscar favoritos em HTML: ${resp.statusCode}');
-  }
+  // URL base da API da The Old Reader
+  static const String baseUrl = 'https://theoldreader.com/reader/api/0';
+
+  final String authToken;
+
+  OldReaderApi(this.authToken);
 
   /// Busca informações do usuário autenticado
   Future<http.Response> getUserInfoApi() async {
@@ -257,31 +251,6 @@ class OldReaderApi {
     return await http.get(url, headers: _headers());
   }
 
-  // Porta padrão do proxy. Pode ser alterada em tempo de execução
-  static int _proxyPort = 3000;
-
-  // Use o proxy local para evitar CORS no Flutter Web
-  // A baseUrl é construída dinamicamente a partir da porta configurada
-  static String baseUrl = '${getProxyBaseUrl()}/proxy';
-
-  // Permite mudar a porta do proxy em tempo de execução
-  static void setProxyPort(int port) {
-    // Atualiza a porta do proxy e a baseUrl
-    _proxyPort = port;
-    baseUrl = '${getProxyBaseUrl()}/proxy';
-    debugPrint('Proxy URL atualizada para: $baseUrl');
-  }
-
-  // Inicializa a API usando a configuração de proxy atual
-  static void initializeProxy() {
-    baseUrl = '${getProxyBaseUrl()}/proxy';
-    debugPrint('API inicializada com proxy URL: $baseUrl');
-  }
-
-  final String authToken;
-
-  OldReaderApi(this.authToken);
-
   Future<http.Response> getUserInfo() async {
     final url = Uri.parse('$baseUrl/user-info');
     return await http.get(url, headers: _headers());
@@ -293,8 +262,31 @@ class OldReaderApi {
   }
 
   Future<http.Response> getUnreadCounts() async {
-    final url = Uri.parse('$baseUrl/unread-count');
+    final url = Uri.parse('$baseUrl/unread-count?output=json');
     return await http.get(url, headers: _headers());
+  }
+
+  /// Retorna um mapa com as contagens não lidas para cada feed e pasta
+  Future<Map<String, int>> getUnreadCountsMap() async {
+    try {
+      final response = await getUnreadCounts();
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        final List<dynamic>? unreadcounts = jsonData['unreadcounts'];
+        if (unreadcounts == null) return {};
+
+        final Map<String, int> counts = {};
+        for (final count in unreadcounts) {
+          if (count['id'] != null && count['count'] != null) {
+            counts[count['id']] = count['count'];
+          }
+        }
+        return counts;
+      }
+    } catch (e) {
+      debugPrint('Erro ao buscar contagens não lidas: $e');
+    }
+    return {};
   }
 
   /// Retorna as IDs dos itens favoritados (starred) usando o endpoint oficial
@@ -528,11 +520,4 @@ class OldReaderApi {
   Map<String, String> _headers() => {
     'Authorization': 'GoogleLogin auth=$authToken',
   };
-
-  static getProxyBaseUrl() {
-    // Retorna a URL base do proxy configurado
-    // Usa a porta definida em [_proxyPort]
-    // Com o adb reverse configurado, podemos usar localhost tanto no web quanto no emulador
-    return 'http://localhost:$_proxyPort';
-  }
 }
