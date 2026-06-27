@@ -1,108 +1,163 @@
-# the_old_reader
+<div align="center">
 
-Este projeto é um app Flutter que implementa um cliente para a Old Reader API ([documentação oficial](https://github.com/theoldreader/api)).
+# 📰 The Old Reader
 
-## Funcionalidades planejadas
-- Login com conta do Old Reader
-- Visualização dos feeds do usuário
-- Leitura de artigos
-- Gerenciamento de assinaturas (adicionar/remover feeds)
+**Cliente Flutter para o [The Old Reader](https://theoldreader.com) — um leitor RSS moderno e multiplataforma**
 
-## Estrutura do Projeto
+[![Flutter](https://img.shields.io/badge/Flutter-3.7+-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.7+-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
+[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 
-### Proxy para API
-Todos os arquivos relacionados ao proxy estão na pasta `proxy/`:
-- `proxy.js` - Servidor proxy principal
-- `proxy-debug.js` - Versão com mais logs para depuração
-- `test-quickadd.js` - Script para testar a adição de feeds
-- `config.json` - Configurações do proxy
-- `logs/` - Diretório onde os logs são armazenados
+[![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://flutter.dev)
+[![iOS](https://img.shields.io/badge/iOS-000000?style=flat-square&logo=apple&logoColor=white)](https://flutter.dev)
+[![Web](https://img.shields.io/badge/Web-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://flutter.dev)
+[![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://flutter.dev)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://flutter.dev)
+[![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)](https://flutter.dev)
 
-### Scripts de Execução
-- `start-proxy.bat` / `start-proxy.ps1` / `start-proxy.sh` - Inicia o servidor proxy
-- `direct-launcher.bat` / `direct-launcher.js` / `direct-launcher.sh` - Inicia o proxy e o app Flutter
-- `manage-logs.bat` / `manage-logs.sh` - Gerencia os arquivos de log
-- `organize-proxy-files.bat` / `organize-proxy-files.ps1` / `organize-proxy-files.sh` - Organiza os arquivos do proxy
-
-## Como rodar
-1. Instale as dependências:
-   ```sh
-   flutter pub get
-   ```
-
-2. Organize os arquivos do proxy (se ainda não estiverem organizados):
-   ```sh
-   .\organize-proxy-files.bat
-   ```
-   ou
-   ```sh
-   pwsh .\organize-proxy-files.ps1
-   ```
-
-3. Inicie o proxy (necessário para execução web):
-   ```sh
-   .\start-proxy.bat
-   ```
-
-4. Execute o app:
-   ```sh
-   flutter run
-   ```
-
-## Versão Web
-Para executar a versão web, você precisa do proxy em execução para evitar erros de CORS:
-
-1. Iniciar manualmente o proxy e depois o app Flutter:
-   ```sh
-   .\start-proxy.bat
-   flutter run -d web-server --web-port 8000 --web-hostname 127.0.0.1
-   ```
-
-2. Usar o lançador direto (inicia proxy e Flutter juntos):
-   ```sh
-   .\direct-launcher.bat
-   ```
-
-## Gerenciamento de Logs
-Para gerenciar os logs do proxy, use:
-```sh
-.\manage-logs.bat
-```
-
-Este script permite visualizar, limpar e arquivar os logs do servidor proxy.
-
-## Testes
-
-Este repositório inclui testes automatizados de login utilizando o [Playwright](https://playwright.dev).
-Para executá-los, é necessário definir as variáveis de ambiente `the_old_reader_email` e `the_old_reader_password`
-com as credenciais da sua conta:
-
-```sh
-export the_old_reader_email="SEU_EMAIL"
-export the_old_reader_password="SUA_SENHA"
-npx playwright test
-```
-
-Se as variáveis não estiverem definidas, o teste será ignorado.
-
-## Próximos passos
-- Implementar autenticação OAuth
-- Listar feeds e artigos
-- Interface para leitura e gerenciamento
+</div>
 
 ---
 
-Abaixo segue o conteúdo padrão do Flutter:
+## ✨ Sobre
 
-## Getting Started
+Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva. O app se conecta à sua conta do [The Old Reader](https://theoldreader.com) para sincronizar leituras, favoritos e assinaturas entre todos os seus dispositivos.
 
-This project is a starting point for a Flutter application.
+> 📖 Documentação técnica completa em [ARCHITECTURE.md](ARCHITECTURE.md).
 
-A few resources to get you started if this is your first Flutter project:
+### Funcionalidades
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- ✅ Login com conta do Old Reader
+- ✅ Visualização de feeds e artigos
+- ✅ Marcação de leitura / não lida
+- ✅ Favoritos (starred) com sincronização
+- ✅ Gerenciamento de assinaturas (adicionar/remover feeds)
+- ✅ Categorias e tags
+- ✅ Busca de artigos
+- ✅ Exportação OPML
+- ✅ Suporte a amigos e comentários
+- 🌐 Proxy Node.js embutido para CORS na web
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🚀 Começando
+
+### Pré-requisitos
+
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) ^3.7.0
+- [Node.js](https://nodejs.org) ^18
+- Conta no [The Old Reader](https://theoldreader.com)
+
+### Instalação
+
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/the_old_reader.git
+cd the_old_reader
+
+# Instale as dependências Flutter
+flutter pub get
+
+# Instale as dependências do proxy
+npm install
+```
+
+### Executando
+
+**Desktop / Android / iOS:**
+```bash
+flutter run
+```
+
+**Web** (requer proxy para CORS):
+```bash
+# Terminal 1: proxy
+node proxy.js
+
+# Terminal 2: Flutter
+flutter run -d web-server --web-port 8000 --web-hostname 127.0.0.1
+```
+
+**Tudo em um comando:**
+```bash
+# Windows
+.\direct-launcher.bat
+
+# macOS / Linux
+./direct-launcher.sh
+
+# PowerShell
+pwsh .\start-web-app.ps1
+```
+
+### Proxy (debug)
+```bash
+node proxy-debug.js
+```
+
+## 🧪 Testes
+
+```bash
+# Testes unitários Flutter
+flutter test
+
+# Testes E2E com Playwright (requer variáveis de ambiente)
+export the_old_reader_email="seu@email.com"
+export the_old_reader_password="sua_senha"
+npx playwright test
+```
+
+## 🏗️ Estrutura do Projeto
+
+```
+lib/
+├── main.dart                  # Entry point
+├── main_scaffold.dart         # Navegação principal
+├── proxy_config.dart          # Configuração da porta do proxy
+├── services/
+│   └── old_reader_api.dart    # HTTP client (~37 métodos)
+├── managers/
+│   └── favorites_manager.dart # Estado de favoritos
+└── pages/
+    ├── login_screen.dart      # Login
+    ├── home_page.dart         # Lista de feeds
+    ├── feed_articles_page.dart
+    ├── feed_articles_page_xml.dart
+    ├── article_page.dart      # Leitura de artigo
+    ├── favorites_page.dart    # Itens favoritados
+    ├── subscriptions_page.dart
+    ├── search_page.dart       # Busca de artigos
+    └── settings_page.dart     # Configurações
+
+proxy/
+├── proxy.js                   # Servidor Express principal
+├── proxy-debug.js             # Versão com logs detalhados
+├── health-check.js            # Health-check da API
+├── config.json                # Configurações
+└── test-quickadd.js           # Teste de adição de feeds
+
+tests/
+└── login.spec.ts              # Teste E2E Playwright
+```
+
+## 🛠️ Stack
+
+| Camada | Tecnologia |
+|--------|-----------|
+| **Frontend** | Flutter + Dart 3.7 |
+| **HTTP Client** | `http` ^1.2.1 |
+| **Parsing RSS** | `xml` ^6.3.0 |
+| **Renderização HTML** | `flutter_html` ^3.0.0 |
+| **Persistência** | `shared_preferences` |
+| **Proxy** | Node.js + Express |
+| **Estado** | `setState` (Provider importado, não integrado) |
+| **Testes E2E** | Playwright |
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---
+
+<p align="center">
+  <a href="ARCHITECTURE.md">📘 Documentação Técnica</a>
+</p>
