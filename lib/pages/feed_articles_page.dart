@@ -133,7 +133,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
 
   Future<void> _loadFavorites() async {
     try {
-      final ids = await widget.api.getStarredItemIdsApi();
+      final ids = await widget.api.getStarredItemIds();
       setState(() => favoriteIds = ids.toSet());
     } catch (_) {}
   }
@@ -179,7 +179,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ArticlePage(article: article),
+        builder: (_) => ArticlePage(article: article, api: widget.api),
       ),
     ).then((_) {
       if (articleId != null) {
