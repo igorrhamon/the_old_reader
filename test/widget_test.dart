@@ -1,30 +1,52 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:the_old_reader/pages/login_screen.dart';
 
-import 'package:the_old_reader/main.dart';
+Widget buildLoginScreen({
+  String? error,
+  bool loading = false,
+  VoidCallback? onLogin,
+}) {
+  return MaterialApp(
+    home: LoginScreen(
+      emailController: TextEditingController(),
+      passwordController: TextEditingController(),
+      onLogin: onLogin ?? () {},
+      loading: loading,
+      error: error,
+    ),
+  );
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('exibe campos de email e senha', (WidgetTester tester) async {
+    await tester.pumpWidget(buildLoginScreen());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('E-mail'), findsOneWidget);
+    expect(find.text('Senha'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('exibe botão Entrar habilitado', (WidgetTester tester) async {
+    await tester.pumpWidget(buildLoginScreen());
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final botao = find.widgetWithText(ElevatedButton, 'Entrar');
+    expect(botao, findsOneWidget);
+    final button = tester.widget<ElevatedButton>(botao);
+    expect(button.onPressed, isNotNull);
+  });
+
+  testWidgets('exibe mensagem de erro', (WidgetTester tester) async {
+    await tester.pumpWidget(buildLoginScreen(error: 'E-mail inválido'));
+
+    expect(find.text('E-mail inválido'), findsOneWidget);
+  });
+
+  testWidgets('loading desabilita botão e mostra spinner', (WidgetTester tester) async {
+    await tester.pumpWidget(buildLoginScreen(loading: true));
+
+    final botao = find.widgetWithText(ElevatedButton, 'Entrar');
+    expect(botao, findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }
