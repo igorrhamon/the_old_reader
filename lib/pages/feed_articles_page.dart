@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'article_page.dart';
 import '../services/old_reader_api.dart';
 import 'package:xml/xml.dart';
-import 'dart:convert';
-import '../managers/favorites_manager.dart';
+
+const _accent = Color(0xFFFF6B2C);
+const _textPrimary = Color(0xFFF2F2F7);
+const _textSecondary = Color(0xFF8E8E93);
+const _cardBg = Color(0xFF1C1C1E);
+const _divider = Color(0xFF2C2C2E);
 
 class FeedArticlesPage extends StatefulWidget {
   final OldReaderApi api;
@@ -15,7 +19,10 @@ class FeedArticlesPage extends StatefulWidget {
 }
 
 class _FeedArticlesPageState extends State<FeedArticlesPage> {
-  List<dynamic>? articles;
+  final List<Map<String, dynamic>> articles = [];
+  final ScrollController _scrollController = ScrollController();
+  String? _continuation;
+  bool _loadingMore = false;
   String? error;
   bool loading = true;
   Set<String> favoriteIds = {};
@@ -25,6 +32,51 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     super.initState();
     _loadArticles();
     _loadFavorites();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_loadingMore &&
+        _continuation != null) {
+      _loadMore();
+    }
+  }
+
+  /// Converte Atom XML do stream/contents em lista de artigos + token de continuação.
+  (List<Map<String, dynamic>>, String?) _parseAtom(String xmlBody) {
+    final doc = XmlDocument.parse(xmlBody);
+    final continuation = doc.findAllElements('continuation').firstOrNull?.innerText;
+    final items = doc.findAllElements('entry').map((entry) {
+      final categories = entry
+          .findElements('category')
+          .map((c) => c.getAttribute('term') ?? '')
+          .where((t) => t.isNotEmpty)
+          .toList();
+      final link = entry
+          .findElements('link')
+          .where((l) => l.getAttribute('rel') == 'alternate')
+          .firstOrNull
+          ?.getAttribute('href') ?? '';
+      return <String, dynamic>{
+        'id': entry.findElements('id').firstOrNull?.innerText ?? '',
+        'title': entry.findElements('title').firstOrNull?.innerText ?? '',
+        'author': entry.findElements('author').firstOrNull
+            ?.findElements('name').firstOrNull?.innerText ?? '',
+        'summary': entry.findElements('summary').firstOrNull?.innerText ?? '',
+        'content': entry.findElements('content').firstOrNull?.innerText ?? '',
+        'categories': categories,
+        'url': link,
+      };
+    }).toList();
+    return (items, continuation);
   }
 
   Future<void> _loadArticles() async {
@@ -32,60 +84,16 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
       loading = true;
       error = null;
     });
-    // Try JSON first
     try {
-      final response = await widget.api.getFeedItems(widget.feed['id']);
+      final response = await widget.api.getStreamContents(
+        stream: widget.feed['id'],
+        n: 20,
+      );
       if (response.statusCode == 200) {
-        final data = response.body;
-        try {
-          final json = jsonDecode(data);
-          articles = (json is Map && json.containsKey('items'))
-              ? List<dynamic>.from(json['items'])
-              : [];
-          setState(() {
-            loading = false;
-          });
-          return;
-        } catch (_) {
-          // Not JSON, try XML below
-          setState(() {
-            loading = true;
-          });
-          // Fallback to XML
-          final document = XmlDocument.parse(data);
-          final entries = document.findAllElements('entry');
-          articles = entries.map((entry) {
-            return {
-              'title': entry.getElement('title')?.text ?? 'Sem título',
-              'author': entry.getElement('author')?.getElement('name')?.text ?? '',
-              'summary': entry.getElement('summary')?.text ?? '',
-              'content': entry.getElement('content')?.text ?? '',
-              'published': entry.getElement('published')?.text ?? '',
-            };
-          }).toList();
-          setState(() {
-            loading = false;
-          });
-        }
-      }
-    } catch (_) {}
-    // Fallback to XML
-    try {
-      final response = await widget.api.getFeedItemsXml(widget.feed['id']);
-      if (response.statusCode == 200) {
-        final data = response.body;
-        final document = XmlDocument.parse(data);
-        final entries = document.findAllElements('entry');
-        articles = entries.map((entry) {
-          return {
-            'title': entry.getElement('title')?.text ?? 'Sem título',
-            'author': entry.getElement('author')?.getElement('name')?.text ?? '',
-            'summary': entry.getElement('summary')?.text ?? '',
-            'content': entry.getElement('content')?.text ?? '',
-            'published': entry.getElement('published')?.text ?? '',
-          };
-        }).toList();
+        final (items, continuation) = _parseAtom(response.body);
         setState(() {
+          articles..clear()..addAll(items);
+          _continuation = continuation;
           loading = false;
         });
       } else {
@@ -102,114 +110,217 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     }
   }
 
+  Future<void> _loadMore() async {
+    if (_loadingMore || _continuation == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final response = await widget.api.getStreamContents(
+        stream: widget.feed['id'],
+        n: 20,
+        c: _continuation,
+      );
+      if (response.statusCode == 200) {
+        final (items, continuation) = _parseAtom(response.body);
+        setState(() {
+          articles.addAll(items);
+          _continuation = continuation;
+        });
+      }
+    } finally {
+      setState(() => _loadingMore = false);
+    }
+  }
+
   Future<void> _loadFavorites() async {
-    final favs = await FavoritesManager.getAllFavorites();
-    setState(() {
-      favoriteIds = favs.toSet();
-    });
+    try {
+      final ids = await widget.api.getStarredItemIdsApi();
+      setState(() => favoriteIds = ids.toSet());
+    } catch (_) {}
+  }
+
+  bool _isRead(Map<String, dynamic> article) {
+    final categories = article['categories'];
+    if (categories is List) {
+      return categories.contains('user/-/state/com.google/read');
+    }
+    return false;
   }
 
   Future<void> _toggleFavorite(String articleId) async {
     final isFav = favoriteIds.contains(articleId);
-    // Chama a API para marcar/desmarcar favorito
     if (isFav) {
       await widget.api.removeFavorite(articleId);
+      setState(() => favoriteIds.remove(articleId));
     } else {
       await widget.api.addFavorite(articleId);
+      setState(() => favoriteIds.add(articleId));
     }
-    await FavoritesManager.setFavorite(articleId, !isFav);
-    setState(() {
-      if (isFav) {
-        favoriteIds.remove(articleId);
-      } else {
-        favoriteIds.add(articleId);
-      }
-    });
   }
 
-  void _openArticle(BuildContext context, dynamic article) {
+  Future<void> _markAllAsRead() async {
+    await widget.api.markAllAsRead(stream: widget.feed['id']);
+    setState(() {
+      for (final article in articles) {
+        final cats = article['categories'];
+        if (cats is List && !cats.contains('user/-/state/com.google/read')) {
+          cats.add('user/-/state/com.google/read');
+        }
+      }
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Todos os artigos marcados como lidos.')),
+      );
+    }
+  }
+
+  void _openArticle(BuildContext context, Map<String, dynamic> article) {
+    final articleId = article['id'] as String?;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ArticlePage(article: article),
       ),
-    );
+    ).then((_) {
+      if (articleId != null) {
+        setState(() {
+          final cats = article['categories'];
+          if (cats is List && !cats.contains('user/-/state/com.google/read')) {
+            cats.add('user/-/state/com.google/read');
+          }
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     Widget content;
     if (loading) {
-      content = const Center(child: CircularProgressIndicator());
+      content = const Center(child: CircularProgressIndicator(color: _accent));
     } else if (error != null) {
-      content = Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
-    } else if (articles == null || articles!.isEmpty) {
-      content = const Center(child: Text('Nenhum artigo encontrado.'));
+      content = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: _accent, size: 48),
+            const SizedBox(height: 16),
+            Text(error!, style: const TextStyle(color: _textSecondary)),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _loadArticles,
+              child: const Text('Tentar novamente', style: TextStyle(color: _accent)),
+            ),
+          ],
+        ),
+      );
+    } else if (articles.isEmpty) {
+      content = const Center(
+        child: Text('Nenhum artigo encontrado.', style: TextStyle(color: _textSecondary)),
+      );
     } else {
       content = ListView.separated(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: articles!.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemCount: articles.length + (_loadingMore ? 1 : 0),
+        separatorBuilder: (_, __) => const Divider(color: _divider, height: 1),
         itemBuilder: (context, index) {
-          final article = articles![index];
-          final articleId = article['id'] ?? article['title'] ?? index.toString();
+          if (index == articles.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(color: _accent),
+              ),
+            );
+          }
+          final article = articles[index];
+          final articleId = article['id'] as String? ?? index.toString();
           final isFav = favoriteIds.contains(articleId);
-          return Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                child: const Icon(Icons.article, color: Color(0xFF625B71)),
+          final isRead = _isRead(article);
+
+          return InkWell(
+            onTap: () => _openArticle(context, article),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: _cardBg,
+                borderRadius: BorderRadius.circular(12),
               ),
-              title: Text(
-                article['title'] ?? 'Sem título',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(
-                article['author'] ?? '',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    width: 4,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isRead ? Colors.transparent : _accent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          article['title'] as String? ?? 'Sem título',
+                          style: TextStyle(
+                            color: isRead ? _textSecondary : _textPrimary,
+                            fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if ((article['author'] as String?)?.isNotEmpty == true) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            article['author'] as String,
+                            style: const TextStyle(color: _textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   IconButton(
                     icon: Icon(
                       isFav ? Icons.star : Icons.star_border,
-                      color: isFav ? Colors.yellow[700] : null,
+                      color: isFav ? _accent : _textSecondary,
+                      size: 20,
                     ),
-                    tooltip: isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
                     onPressed: () => _toggleFavorite(articleId),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios),
-                    color: Theme.of(context).colorScheme.primary,
-                    onPressed: () => _openArticle(context, article),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
                   ),
                 ],
               ),
-              onTap: () => _openArticle(context, article),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           );
         },
       );
     }
-    
+
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: Colors.black,
+        foregroundColor: _textPrimary,
+        elevation: 0,
         title: Text(
-          widget.feed['title'] ?? 'Feed',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
+          widget.feed['title'] as String? ?? 'Feed',
+          style: const TextStyle(color: _textPrimary, fontSize: 17, fontWeight: FontWeight.w600),
         ),
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Marcar todos como lidos',
+            color: _textPrimary,
+            onPressed: _markAllAsRead,
+          ),
+        ],
       ),
       body: content,
     );
   }
 }
-
