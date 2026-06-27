@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+const _accent = Color(0xFFFF6B2C);
+const _bg = Color(0xFF0F0F0F);
+const _surface = Color(0xFF1C1C1E);
+const _textPrimary = Color(0xFFF2F2F7);
+const _textSecondary = Color(0xFF8E8E93);
+
 class LoginScreen extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
@@ -22,188 +28,191 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Card(
-              elevation: 0,
-              margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+    return Scaffold(
+      backgroundColor: _bg,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo mark
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.rss_feed_rounded, color: Colors.white, size: 26),
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    // AppBar substitute
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const SizedBox(width: 48),
-                        const Expanded(
-                          child: Text(
-                            'FeedAI',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Color(0xFF111518),
-                              letterSpacing: -0.015,
-                            ),
+              const SizedBox(height: 28),
+              const Text(
+                'Entrar',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'The Old Reader',
+                style: TextStyle(
+                  color: _accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 36),
+              _label('E-mail'),
+              const SizedBox(height: 8),
+              _field(
+                controller: emailController,
+                hint: 'seu@email.com',
+                keyboardType: TextInputType.emailAddress,
+                enabled: !loading,
+              ),
+              const SizedBox(height: 16),
+              _label('Senha'),
+              const SizedBox(height: 8),
+              _field(
+                controller: passwordController,
+                hint: '••••••••',
+                obscure: true,
+                enabled: !loading,
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: onForgotPassword,
+                child: const Text(
+                  'Esqueceu a senha?',
+                  style: TextStyle(color: _textSecondary, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 28),
+              if (error != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0x1AFF453A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0x33FF453A)),
+                  ),
+                  child: Text(
+                    error!,
+                    style: const TextStyle(color: Color(0xFFFF453A), fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: loading ? null : onLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFF5C3A20),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Entrar',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.help_outline, color: Color(0xFF111518)),
-                          onPressed: () {},
+                ),
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: GestureDetector(
+                  onTap: onSignUp,
+                  child: const Text.rich(
+                    TextSpan(
+                      text: 'Não tem conta? ',
+                      style: TextStyle(color: _textSecondary, fontSize: 13),
+                      children: [
+                        TextSpan(
+                          text: 'Cadastrar',
+                          style: TextStyle(color: _accent, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Welcome back',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 28,
-                        color: Color(0xFF111518),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: TextField(
-                        controller: emailController,
-                        enabled: !loading,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          hintText: 'Email',
-                          filled: true,
-                          fillColor: const Color(0xFFF0F2F5),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          hintStyle: const TextStyle(color: Color(0xFF60768A)),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: TextField(
-                        controller: passwordController,
-                        enabled: !loading,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          hintText: 'Password',
-                          filled: true,
-                          fillColor: const Color(0xFFF0F2F5),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          hintStyle: const TextStyle(color: Color(0xFF60768A)),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          onTap: onForgotPassword,
-                          child: const Text(
-                            'Forgot password?',
-                            style: TextStyle(
-                              color: Color(0xFF60768A),
-                              fontSize: 14,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: loading ? null : onLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).primaryColor,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: loading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Text(
-                                  'Log in',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    if (error != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: Text(
-                          error!,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
-                        ),
-                      ),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 16),
-                      child: GestureDetector(
-                        onTap: onSignUp,
-                        child: const Text(
-                          "Don't have an account? Sign up",
-                          style: TextStyle(
-                            color: Color(0xFF60768A),
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-            // Keyboard area (mock)
-            // const SizedBox(height: 32),
-            // Container(
-            //   height: 180,
-            //   width: 340,
-            //   decoration: BoxDecoration(
-            //     color: Color(0xFFE9EAEC),
-            //     borderRadius: BorderRadius.circular(12),
-            //   ),
-            //   child: const Center(
-            //     child: Icon(Icons.keyboard, size: 64, color: Color(0xFFB0B4B9)),
-            //   ),
-            // ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: _textSecondary,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.4,
+      ),
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String hint,
+    bool obscure = false,
+    TextInputType? keyboardType,
+    bool enabled = true,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: _textPrimary, fontSize: 15),
+      cursorColor: _accent,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: _textSecondary, fontSize: 15),
+        filled: true,
+        fillColor: _surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF3A3A3C)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF3A3A3C)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _accent, width: 1.5),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF2C2C2E)),
         ),
       ),
     );
