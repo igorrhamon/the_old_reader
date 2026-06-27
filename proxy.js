@@ -138,9 +138,9 @@ app.get("/proxy/posts/starred", async (req, res) => {
 // Proxy GET requests (Express RegExp route for compatibility)
 app.get(/^\/proxy\/(.*)/, async (req, res) => {
   const apiPath = req.params[0];
-  // Garante que output=json só é adicionado para endpoints que aceitam esse parâmetro
-  let url = `${API_BASE}/${apiPath}`;
-  // Adiciona output=json para endpoints conhecidos que suportam
+  // req.params[0] contém apenas o path; a query string deve ser pega de req.originalUrl
+  const originalQuery = req.originalUrl.includes('?') ? req.originalUrl.split('?')[1] : '';
+
   const endpointsWithJson = [
     "subscription/list",
     "user-info",
@@ -149,20 +149,23 @@ app.get(/^\/proxy\/(.*)/, async (req, res) => {
     "tag/list",
     "friend/list",
     "stream/contents",
-    "stream/contents/feed",
     "stream/items/ids",
     "stream/items/contents",
     "search/items/ids",
     "search/items/contents",
     "status"
   ];
-  // Se o endpoint começa com algum dos acima, adiciona output=json
-  if (endpointsWithJson.some(e => apiPath.startsWith(e))) {
-    // Garante que output=json seja o último parâmetro
-    if (apiPath.includes("?")) {
-      url = `${API_BASE}/${apiPath}&output=json`;
-    } else {
-      url = `${API_BASE}/${apiPath}?output=json`;
+
+  let url;
+  if (originalQuery) {
+    url = `${API_BASE}/${apiPath}?${originalQuery}`;
+    if (endpointsWithJson.some(e => apiPath.startsWith(e)) && !originalQuery.includes('output=')) {
+      url += '&output=json';
+    }
+  } else {
+    url = `${API_BASE}/${apiPath}`;
+    if (endpointsWithJson.some(e => apiPath.startsWith(e))) {
+      url += '?output=json';
     }
   }
 
