@@ -310,6 +310,11 @@ class OldReaderApi {
     return results;
   }
 
+  Future<http.Response> getFeedItemsXml(String feedId) async {
+    final url = Uri.parse('$baseUrl/stream/contents/$feedId?n=20&output=xml');
+    return http.get(url, headers: _headers());
+  }
+
   Future<List<String>> getStarredItemIds() async {
     final url = Uri.parse(
       '$baseUrl/stream/items/ids?output=json&s=user/-/state/com.google/starred',

@@ -63,7 +63,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           subtitle: Text(article['author'] ?? ''),
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => ArticlePage(article: article)),
+            MaterialPageRoute(builder: (_) => ArticlePage(article: article, api: widget.api)),
           ),
         );
       },

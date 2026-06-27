@@ -12,13 +12,10 @@ import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
 import 'proxy_config.dart'; // Import the proxy configuration
 
-void main() {
-  // Configure the proxy port
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   configureProxy();
-  
-  // Initialize the API with the configured proxy
   OldReaderApi.initializeProxy();
-  
   runApp(const MyApp());
 }
 

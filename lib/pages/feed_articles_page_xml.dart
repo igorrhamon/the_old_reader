@@ -64,7 +64,7 @@ class _FeedArticlesPageXmlState extends State<FeedArticlesPageXml> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ArticlePage(article: article),
+        builder: (_) => ArticlePage(article: article, api: widget.api),
       ),
     );
   }
