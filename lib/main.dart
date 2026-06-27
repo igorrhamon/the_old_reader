@@ -96,17 +96,19 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   Future<void> _restoreSession() async {
-    final token = await AuthService.loadToken();
-    if (token != null && token.isNotEmpty) {
-      final api = OldReaderApi(token);
-      try {
-        final info = await api.getUserInfo();
-        if (info.statusCode == 200) {
-          if (mounted) _onLogin(api);
-          return;
-        }
-      } catch (_) {}
-    }
+    try {
+      final token = await AuthService.loadToken();
+      if (token != null && token.isNotEmpty) {
+        final api = OldReaderApi(token);
+        try {
+          final info = await api.getUserInfo();
+          if (info.statusCode == 200) {
+            if (mounted) _onLogin(api);
+            return;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
     if (mounted) setState(() => _loadingAuth = false);
   }
 
