@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
 import 'services/old_reader_api.dart';
+import 'services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'pages/favorites_page.dart';
 import 'pages/login_screen.dart';
 import 'pages/add_feed_page.dart';
+import 'pages/search_page.dart';
+import 'pages/settings_page.dart';
 import 'proxy_config.dart'; // Import the proxy configuration
 
-void main() {
-  // Configure the proxy port
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   configureProxy();
-  
-  // Initialize the API with the configured proxy
   OldReaderApi.initializeProxy();
-  
   runApp(const MyApp());
 }
 
@@ -87,11 +87,36 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
   OldReaderApi? _api;
+  bool _loadingAuth = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final token = await AuthService.loadToken();
+      if (token != null && token.isNotEmpty) {
+        final api = OldReaderApi(token);
+        try {
+          final info = await api.getUserInfo();
+          if (info.statusCode == 200) {
+            if (mounted) _onLogin(api);
+            return;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingAuth = false);
+  }
 
   void _onLogin(OldReaderApi api) {
     setState(() {
       _api = api;
       _selectedIndex = 0;
+      _loadingAuth = false;
     });
   }
 
@@ -112,10 +137,23 @@ class _MainScaffoldState extends State<MainScaffold> {
         actions: [
           if (isLogged)
             IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Buscar',
+              color: Theme.of(context).colorScheme.onPrimary,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SearchPage(api: _api!)),
+              ),
+            ),
+          if (isLogged)
+            IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Sair',
               color: Theme.of(context).colorScheme.onPrimary,
-              onPressed: () => setState(() => _api = null),
+              onPressed: () async {
+                await AuthService.clearToken();
+                setState(() => _api = null);
+              },
             ),
         ],
         iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
@@ -162,7 +200,9 @@ class _MainScaffoldState extends State<MainScaffold> {
               ),
             )
           : null,
-      body: isLogged
+      body: _loadingAuth
+          ? const Center(child: CircularProgressIndicator())
+          : isLogged
           ? Stack(
               children: [
                 IndexedStack(
@@ -170,7 +210,13 @@ class _MainScaffoldState extends State<MainScaffold> {
                   children: [
                     HomePage(api: _api!),
                     FavoritesPage(api: _api!),
-                    const Center(child: Text('Configurações (em breve)', style: TextStyle(fontSize: 18))),
+                    SettingsPage(
+                      api: _api!,
+                      onLogout: () async {
+                        await AuthService.clearToken();
+                        setState(() => _api = null);
+                      },
+                    ),
                   ],
                 ),                  if (_selectedIndex == 0)
                     Positioned(
@@ -268,6 +314,7 @@ class _LoginPageState extends State<LoginPage> {
           final api = OldReaderApi(token);
           final userInfo = await api.getUserInfo();
           if (userInfo.statusCode == 200) {
+            await AuthService.saveToken(token);
             if (widget.onLogin != null) widget.onLogin!(api);
             return;
           }

@@ -135,6 +135,22 @@ app.get("/proxy/posts/starred", async (req, res) => {
   }
 });
 
+// Rota dedicada para exportação de OPML (deve ter prioridade sobre o catch-all)
+app.get("/proxy/reader/subscriptions/export", async (req, res) => {
+  const authHeader = req.headers["authorization"] || "";
+  try {
+    const response = await fetch("https://theoldreader.com/reader/subscriptions/export", {
+      headers: { "Authorization": authHeader },
+    });
+    const text = await response.text();
+    res.set("Content-Type", response.headers.get("content-type") || "text/xml");
+    res.status(response.status).send(text);
+  } catch (err) {
+    console.error(`[GET] Error (OPML export): ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Proxy GET requests (Express RegExp route for compatibility)
 app.get(/^\/proxy\/(.*)/, async (req, res) => {
   const apiPath = req.params[0];

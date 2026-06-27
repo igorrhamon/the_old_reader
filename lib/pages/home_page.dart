@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/old_reader_api.dart';
 import 'feed_articles_page.dart';
-import 'feed_articles_page_xml.dart';
 
 class HomePage extends StatefulWidget {
   final OldReaderApi api;
@@ -15,8 +14,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<dynamic>? feeds;
-  String? error;  
-  bool loading = true;  @override
+  Map<String, int> unreadCounts = {};
+  String? error;
+  bool loading = true;
+
+  @override
   void initState() {
     super.initState();
     _loadFeeds();
@@ -25,7 +27,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void didUpdateWidget(HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload feeds if they might have changed
     _loadFeeds();
   }
 
@@ -35,22 +36,44 @@ class _HomePageState extends State<HomePage> {
       error = null;
     });
     try {
-      final response = await widget.api.getSubscriptions();
-      if (response.statusCode == 200) {
-        final data = response.body;
-        final json = jsonDecode(data);
+      final results = await Future.wait([
+        widget.api.getSubscriptions(),
+        widget.api.getUnreadCounts(),
+      ]);
+
+      final subsResponse = results[0];
+      final unreadResponse = results[1];
+
+      if (subsResponse.statusCode == 200) {
+        final json = jsonDecode(subsResponse.body);
         feeds = (json is Map && json.containsKey('subscriptions'))
             ? List<dynamic>.from(json['subscriptions'])
             : [];
-        setState(() {
-          loading = false;
-        });
       } else {
         setState(() {
-          error = 'Erro ao carregar feeds ({response.statusCode})';
+          error = 'Erro ao carregar feeds (${subsResponse.statusCode})';
           loading = false;
         });
+        return;
       }
+
+      if (unreadResponse.statusCode == 200) {
+        try {
+          final unreadJson = jsonDecode(unreadResponse.body);
+          final List<dynamic>? counts = unreadJson['unreadcounts'];
+          if (counts != null) {
+            unreadCounts = {
+              for (final item in counts)
+                if (item['id'] != null && item['count'] != null)
+                  item['id'] as String: (item['count'] as num).toInt(),
+            };
+          }
+        } catch (_) {}
+      }
+
+      setState(() {
+        loading = false;
+      });
     } catch (e) {
       setState(() {
         error = 'Erro: $e';
@@ -59,76 +82,143 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _openFeed(BuildContext context, dynamic feed) async {
-    try {
-      final response = await widget.api.getFeedItems(feed['id']);
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => FeedArticlesPage(api: widget.api, feed: feed),
-          ),
-        );
-        return;
-      }
-    } catch (_) {}
-    if (!mounted) return;
+  void _openFeed(BuildContext context, dynamic feed) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => FeedArticlesPageXml(api: widget.api, feed: feed),
+        builder: (_) => FeedArticlesPage(api: widget.api, feed: feed),
+      ),
+    );
+  }
+
+  Widget _buildSpecialTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Map<String, dynamic> feed,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        ),
+        title: Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.arrow_forward_ios),
+          color: Theme.of(context).colorScheme.primary,
+          onPressed: () => _openFeed(context, feed),
+        ),
+        onTap: () => _openFeed(context, feed),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Remove o Scaffold e o AppBar, retornando apenas o conteúdo
-    return Builder(
-      builder: (context) {
-        if (loading) {
-          return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (error != null) {
+      return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
+    }
+
+    final allFeeds = feeds ?? [];
+    final itemCount = allFeeds.length + 2; // +2 for special streams
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: itemCount,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _buildSpecialTile(
+            context,
+            icon: Icons.all_inbox,
+            title: 'Todos os artigos',
+            feed: {
+              'id': 'user/-/state/com.google/reading-list',
+              'title': 'Todos os artigos',
+            },
+          );
         }
-        if (error != null) {
-          return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
+        if (index == 1) {
+          return _buildSpecialTile(
+            context,
+            icon: Icons.mark_email_unread,
+            title: 'Não lidos',
+            feed: {
+              'id': 'user/-/state/com.google/reading-list',
+              'title': 'Não lidos',
+              'exclude': 'user/-/state/com.google/read',
+            },
+          );
         }
-        if (feeds == null || feeds!.isEmpty) {
-          return const Center(child: Text('Nenhum feed encontrado.'));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: feeds!.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final feed = feeds![index];
-            return Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  child: const Icon(Icons.rss_feed, color: Color(0xFF6750A4)),
-                ),
-                title: Text(
-                  feed['title'] ?? 'Sem título',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  feed['htmlUrl'] ?? feed['id'] ?? '',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                trailing: IconButton(
+
+        final feed = allFeeds[index - 2];
+        final feedId = feed['id'] as String? ?? '';
+        final count = unreadCounts[feedId] ?? 0;
+
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              child: const Icon(Icons.rss_feed, color: Color(0xFF6750A4)),
+            ),
+            title: Text(
+              feed['title'] ?? 'Sem título',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              feed['htmlUrl'] ?? feed['id'] ?? '',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (count > 0)
+                  Container(
+                    margin: const EdgeInsets.only(right: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      count > 999 ? '999+' : count.toString(),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                IconButton(
                   icon: const Icon(Icons.arrow_forward_ios),
                   color: Theme.of(context).colorScheme.primary,
                   onPressed: () => _openFeed(context, feed),
                 ),
-                onTap: () => _openFeed(context, feed),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-            );
-          },
+              ],
+            ),
+            onTap: () => _openFeed(context, feed),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
         );
       },
     );
