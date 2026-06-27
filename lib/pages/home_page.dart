@@ -86,7 +86,7 @@ class _HomePageState extends State<HomePage> {
 
       if (subsResponse.statusCode == 200) {
         final json = _parseApiResponse(subsResponse.body);
-        feeds = (json is Map && json.containsKey('subscriptions'))
+        feeds = (json.containsKey('subscriptions'))
             ? List<dynamic>.from(json['subscriptions'])
             : [];
       } else {
