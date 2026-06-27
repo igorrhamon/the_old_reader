@@ -28,7 +28,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
     try {
       // 1. Busca IDs de itens favoritados via Old Reader
-      final starredIds = await widget.api.getStarredItemIdsApi();
+      final starredIds = await widget.api.getStarredItemIds();
       // 2. Busca conteúdo desses itens
       final fetchedArticles = await widget.api.getItemsContentsApi(starredIds);
       setState(() {

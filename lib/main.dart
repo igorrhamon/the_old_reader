@@ -24,52 +24,69 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const accent = Color(0xFFFF6B2C);
+    const bg = Color(0xFF0F0F0F);
+    const surface = Color(0xFF1C1C1E);
+    const surfaceHigh = Color(0xFF2C2C2E);
+    const textPrimary = Color(0xFFF2F2F7);
+    const textSecondary = Color(0xFF8E8E93);
+    const outline = Color(0xFF3A3A3C);
+
     return MaterialApp(
-      title: 'The Old Reader Client',
+      title: 'The Old Reader',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme(
-          brightness: Brightness.light,
-          primary: const Color(0xFF6750A4),
-          onPrimary: const Color(0xFFFFFFFF),
-          primaryContainer: const Color(0xFFEADDFF),
-          onPrimaryContainer: const Color(0xFF21005D),
-          secondary: const Color(0xFF625B71),
-          onSecondary: const Color(0xFFFFFFFF),
-          secondaryContainer: const Color(0xFFE8DEF8),
-          onSecondaryContainer: const Color(0xFF1D192B),
-          surface: const Color(0xFFFFFBFE),
-          onSurface: const Color(0xFF1C1B1F),
-          error: const Color(0xFFB3261E),
-          onError: const Color(0xFFFFFFFF),
-          errorContainer: const Color(0xFFF9DEDC),
-          onErrorContainer: const Color(0xFF410E0B),
-          surfaceContainerHighest: const Color(0xFFE7E0EC),
-          onSurfaceVariant: const Color(0xFF49454F),
-          outline: const Color(0xFF79747E),
-          outlineVariant: const Color(0xFFCAC4D0),
-          shadow: const Color(0xFF000000),
-          inverseSurface: const Color(0xFF313033),
-          onInverseSurface: const Color(0xFFF4EFF4),
-          inversePrimary: const Color(0xFFD0BCFF),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: bg,
+        colorScheme: const ColorScheme.dark(
+          primary: accent,
+          onPrimary: Colors.white,
+          secondary: textSecondary,
+          onSecondary: Colors.white,
+          surface: surface,
+          onSurface: textPrimary,
+          surfaceContainerHighest: surfaceHigh,
+          onSurfaceVariant: textSecondary,
+          outline: outline,
+          error: Color(0xFFFF453A),
+          onError: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: surface,
+          foregroundColor: textPrimary,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          titleTextStyle: TextStyle(
+            color: textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.3,
+          ),
+          iconTheme: IconThemeData(color: textSecondary),
+        ),
+        navigationBarTheme: const NavigationBarThemeData(
+          backgroundColor: surface,
+          indicatorColor: Color(0x33FF6B2C),
+          iconTheme: WidgetStatePropertyAll(IconThemeData(color: textSecondary)),
+          labelTextStyle: WidgetStatePropertyAll(
+            TextStyle(color: textSecondary, fontSize: 11),
+          ),
+        ),
+        dividerColor: outline,
+        cardTheme: const CardThemeData(
+          color: surface,
+          elevation: 0,
+          margin: EdgeInsets.zero,
         ),
         fontFamily: 'Roboto',
         textTheme: const TextTheme(
-          displayLarge: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, fontSize: 57, letterSpacing: -0.25),
-          displayMedium: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, fontSize: 45),
-          displaySmall: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, fontSize: 36),
-          headlineLarge: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, fontSize: 32),
-          headlineMedium: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, fontSize: 28),
-          headlineSmall: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, fontSize: 24),
-          titleLarge: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w600, fontSize: 22),
-          titleMedium: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w500, fontSize: 16),
-          titleSmall: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w500, fontSize: 14),
-          bodyLarge: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.normal, fontSize: 16),
-          bodyMedium: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.normal, fontSize: 14),
-          bodySmall: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.normal, fontSize: 12),
-          labelLarge: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w500, fontSize: 14),
-          labelMedium: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w500, fontSize: 12),
-          labelSmall: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w500, fontSize: 11),
+          titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontSize: 20, letterSpacing: -0.5),
+          titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: -0.2),
+          titleSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w500, fontSize: 13),
+          bodyLarge: TextStyle(color: textPrimary, fontSize: 16, height: 1.6),
+          bodyMedium: TextStyle(color: textSecondary, fontSize: 13, height: 1.5),
+          bodySmall: TextStyle(color: textSecondary, fontSize: 11),
+          labelLarge: TextStyle(color: accent, fontWeight: FontWeight.w600, fontSize: 11, letterSpacing: 0.5),
         ),
       ),
       home: const MainScaffold(),
@@ -126,20 +143,55 @@ class _MainScaffoldState extends State<MainScaffold> {
     });
   }
 
+  Widget _drawerItem(BuildContext context, IconData icon, String label, int index) {
+    final selected = _selectedIndex == index;
+    return ListTile(
+      leading: Icon(icon, color: selected ? const Color(0xFFFF6B2C) : const Color(0xFF8E8E93), size: 20),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: selected ? const Color(0xFFFF6B2C) : const Color(0xFFF2F2F7),
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          fontSize: 15,
+        ),
+      ),
+      selectedTileColor: const Color(0x1AFF6B2C),
+      selected: selected,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      onTap: () {
+        Navigator.pop(context);
+        _onTabTapped(index);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLogged = _api != null;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text('The Old Reader', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.onPrimary)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF6B2C),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('The Old Reader'),
+          ],
+        ),
         centerTitle: true,
         actions: [
           if (isLogged)
             IconButton(
-              icon: const Icon(Icons.search),
+              icon: const Icon(Icons.search_rounded),
               tooltip: 'Buscar',
-              color: Theme.of(context).colorScheme.onPrimary,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => SearchPage(api: _api!)),
@@ -147,55 +199,47 @@ class _MainScaffoldState extends State<MainScaffold> {
             ),
           if (isLogged)
             IconButton(
-              icon: const Icon(Icons.logout),
+              icon: const Icon(Icons.logout_rounded),
               tooltip: 'Sair',
-              color: Theme.of(context).colorScheme.onPrimary,
               onPressed: () async {
                 await AuthService.clearToken();
                 setState(() => _api = null);
               },
             ),
         ],
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
       ),
       drawer: isLogged
           ? Drawer(
+              backgroundColor: const Color(0xFF1C1C1E),
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
                   DrawerHeader(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
+                    decoration: const BoxDecoration(color: Color(0xFF0F0F0F)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6B2C),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.rss_feed, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'The Old Reader',
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
+                        ),
+                      ],
                     ),
-                    child: Text('The Old Reader', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.onPrimary)),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.rss_feed),
-                    title: const Text('Feeds'),
-                    selected: _selectedIndex == 0,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onTabTapped(0);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.bookmark),
-                    title: const Text('Favoritos'),
-                    selected: _selectedIndex == 1,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onTabTapped(1);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.settings),
-                    title: const Text('Configurações'),
-                    selected: _selectedIndex == 2,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onTabTapped(2);
-                    },
-                  ),
+                  _drawerItem(context, Icons.rss_feed_rounded, 'Feeds', 0),
+                  _drawerItem(context, Icons.bookmark_rounded, 'Favoritos', 1),
+                  _drawerItem(context, Icons.settings_rounded, 'Configurações', 2),
                 ],
               ),
             )
@@ -223,22 +267,20 @@ class _MainScaffoldState extends State<MainScaffold> {
                       bottom: 24,
                       right: 24,
                       child: FloatingActionButton(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        backgroundColor: const Color(0xFFFF6B2C),
+                        foregroundColor: Colors.white,
+                        elevation: 4,
                         onPressed: () async {
                           final result = await Navigator.push(
-                            context, 
+                            context,
                             MaterialPageRoute(
                               builder: (context) => AddFeedPage(api: _api!),
                             ),
                           );
-                          if (result == true) {
-                            // Refresh feeds if a new feed was added
-                            setState(() {});
-                          }
+                          if (result == true) setState(() {});
                         },
                         tooltip: 'Adicionar feed',
-                        child: const Icon(Icons.add),
+                        child: const Icon(Icons.add_rounded),
                       ),
                     ),
               ],
@@ -248,10 +290,23 @@ class _MainScaffoldState extends State<MainScaffold> {
           ? NavigationBar(
               selectedIndex: _selectedIndex,
               onDestinationSelected: _onTabTapped,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               destinations: const [
-                NavigationDestination(icon: Icon(Icons.rss_feed), label: 'Feeds'),
-                NavigationDestination(icon: Icon(Icons.bookmark), label: 'Favoritos'),
-                NavigationDestination(icon: Icon(Icons.settings), label: 'Configurações'),
+                NavigationDestination(
+                  icon: Icon(Icons.rss_feed_outlined),
+                  selectedIcon: Icon(Icons.rss_feed_rounded, color: Color(0xFFFF6B2C)),
+                  label: 'Feeds',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.bookmark_border_rounded),
+                  selectedIcon: Icon(Icons.bookmark_rounded, color: Color(0xFFFF6B2C)),
+                  label: 'Favoritos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded, color: Color(0xFFFF6B2C)),
+                  label: 'Config.',
+                ),
               ],
             )
           : null,
