@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'article_page.dart';
 import '../services/old_reader_api.dart';
-import 'dart:convert';
+import 'package:xml/xml.dart';
 
 const _accent = Color(0xFFFF6B2C);
 const _textPrimary = Color(0xFFF2F2F7);
 const _textSecondary = Color(0xFF8E8E93);
-const _divider = Color(0xFF3A3A3C);
-const _surface = Color(0xFF1C1C1E);
-const _gold = Color(0xFFFFCC02);
+const _cardBg = Color(0xFF1C1C1E);
+const _divider = Color(0xFF2C2C2E);
 
 class FeedArticlesPage extends StatefulWidget {
   final OldReaderApi api;
@@ -20,7 +19,7 @@ class FeedArticlesPage extends StatefulWidget {
 }
 
 class _FeedArticlesPageState extends State<FeedArticlesPage> {
-  final List<dynamic> articles = [];
+  final List<Map<String, dynamic>> articles = [];
   final ScrollController _scrollController = ScrollController();
   String? _continuation;
   bool _loadingMore = false;
@@ -51,6 +50,35 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     }
   }
 
+  /// Converte Atom XML do stream/contents em lista de artigos + token de continuação.
+  (List<Map<String, dynamic>>, String?) _parseAtom(String xmlBody) {
+    final doc = XmlDocument.parse(xmlBody);
+    final continuation = doc.findAllElements('continuation').firstOrNull?.innerText;
+    final items = doc.findAllElements('entry').map((entry) {
+      final categories = entry
+          .findElements('category')
+          .map((c) => c.getAttribute('term') ?? '')
+          .where((t) => t.isNotEmpty)
+          .toList();
+      final link = entry
+          .findElements('link')
+          .where((l) => l.getAttribute('rel') == 'alternate')
+          .firstOrNull
+          ?.getAttribute('href') ?? '';
+      return <String, dynamic>{
+        'id': entry.findElements('id').firstOrNull?.innerText ?? '',
+        'title': entry.findElements('title').firstOrNull?.innerText ?? '',
+        'author': entry.findElements('author').firstOrNull
+            ?.findElements('name').firstOrNull?.innerText ?? '',
+        'summary': entry.findElements('summary').firstOrNull?.innerText ?? '',
+        'content': entry.findElements('content').firstOrNull?.innerText ?? '',
+        'categories': categories,
+        'url': link,
+      };
+    }).toList();
+    return (items, continuation);
+  }
+
   Future<void> _loadArticles() async {
     setState(() {
       loading = true;
@@ -60,14 +88,12 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
       final response = await widget.api.getStreamContents(
         stream: widget.feed['id'],
         n: 20,
-        exclude: widget.feed['exclude'] as String?,
       );
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        final items = List<dynamic>.from(json['items'] ?? []);
+        final (items, continuation) = _parseAtom(response.body);
         setState(() {
           articles..clear()..addAll(items);
-          _continuation = json['continuation'] as String?;
+          _continuation = continuation;
           loading = false;
         });
       } else {
@@ -92,14 +118,12 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
         stream: widget.feed['id'],
         n: 20,
         c: _continuation,
-        exclude: widget.feed['exclude'] as String?,
       );
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        final items = List<dynamic>.from(json['items'] ?? []);
+        final (items, continuation) = _parseAtom(response.body);
         setState(() {
           articles.addAll(items);
-          _continuation = json['continuation'] as String?;
+          _continuation = continuation;
         });
       }
     } finally {
@@ -109,12 +133,12 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
 
   Future<void> _loadFavorites() async {
     try {
-      final ids = await widget.api.getStarredItemIds();
+      final ids = await widget.api.getStarredItemIdsApi();
       setState(() => favoriteIds = ids.toSet());
     } catch (_) {}
   }
 
-  bool _isRead(dynamic article) {
+  bool _isRead(Map<String, dynamic> article) {
     final categories = article['categories'];
     if (categories is List) {
       return categories.contains('user/-/state/com.google/read');
@@ -145,23 +169,18 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Todos os artigos marcados como lidos.'),
-          backgroundColor: _surface,
-        ),
+        const SnackBar(content: Text('Todos os artigos marcados como lidos.')),
       );
     }
   }
 
-  void _openArticle(BuildContext context, dynamic article) {
+  void _openArticle(BuildContext context, Map<String, dynamic> article) {
     final articleId = article['id'] as String?;
-    final enriched = Map<String, dynamic>.from(article as Map)
-      ..['summary'] = _extractText(article['summary'])
-      ..['content'] = _extractText(article['content']);
-
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ArticlePage(article: enriched, api: widget.api)),
+      MaterialPageRoute(
+        builder: (_) => ArticlePage(article: article),
+      ),
     ).then((_) {
       if (articleId != null) {
         setState(() {
@@ -174,64 +193,18 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
     });
   }
 
-  String _extractText(dynamic field) {
-    if (field is Map) return field['content'] as String? ?? '';
-    if (field is String) return field;
-    return '';
-  }
-
-  String _stripHtml(String html) {
-    return html.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll('&nbsp;', ' ').trim();
-  }
-
-  String _formatDate(dynamic published) {
-    if (published == null) return '';
-    try {
-      final ts = int.tryParse(published.toString());
-      if (ts != null) {
-        final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
-        final now = DateTime.now();
-        final diff = now.difference(dt);
-        if (diff.inMinutes < 60) return '${diff.inMinutes}min';
-        if (diff.inHours < 24) return '${diff.inHours}h';
-        if (diff.inDays < 7) return '${diff.inDays}d';
-        return '${dt.day}/${dt.month}';
-      }
-    } catch (_) {}
-    return published.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        title: Text(
-          widget.feed['title'] as String? ?? 'Feed',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: -0.3),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all_rounded),
-            tooltip: 'Marcar todos como lidos',
-            onPressed: _markAllAsRead,
-          ),
-        ],
-      ),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    if (loading) return const Center(child: CircularProgressIndicator(color: _accent));
-
-    if (error != null) {
-      return Center(
+    Widget content;
+    if (loading) {
+      content = const Center(child: CircularProgressIndicator(color: _accent));
+    } else if (error != null) {
+      content = Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, color: _textSecondary, size: 48),
-            const SizedBox(height: 12),
+            const Icon(Icons.error_outline, color: _accent, size: 48),
+            const SizedBox(height: 16),
             Text(error!, style: const TextStyle(color: _textSecondary)),
             const SizedBox(height: 16),
             TextButton(
@@ -241,133 +214,113 @@ class _FeedArticlesPageState extends State<FeedArticlesPage> {
           ],
         ),
       );
-    }
-
-    if (articles.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_rounded, color: _textSecondary, size: 48),
-            SizedBox(height: 12),
-            Text('Nenhum artigo encontrado.', style: TextStyle(color: _textSecondary)),
-          ],
-        ),
+    } else if (articles.isEmpty) {
+      content = const Center(
+        child: Text('Nenhum artigo encontrado.', style: TextStyle(color: _textSecondary)),
       );
-    }
-
-    return RefreshIndicator(
-      color: _accent,
-      backgroundColor: _surface,
-      onRefresh: _loadArticles,
-      child: ListView.builder(
+    } else {
+      content = ListView.separated(
         controller: _scrollController,
+        padding: const EdgeInsets.all(16),
         itemCount: articles.length + (_loadingMore ? 1 : 0),
+        separatorBuilder: (_, __) => const Divider(color: _divider, height: 1),
         itemBuilder: (context, index) {
           if (index == articles.length) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator(color: _accent, strokeWidth: 2)),
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(color: _accent),
+              ),
             );
           }
           final article = articles[index];
-          final articleId = article['id'] as String? ?? article['title'] ?? index.toString();
+          final articleId = article['id'] as String? ?? index.toString();
           final isFav = favoriteIds.contains(articleId);
           final isRead = _isRead(article);
-          final title = article['title'] as String? ?? 'Sem título';
-          final author = article['author'] as String? ?? '';
-          final published = article['published'];
-          final rawSummary = _extractText(article['summary']);
-          final rawContent = _extractText(article['content']);
-          final preview = _stripHtml(rawSummary.isNotEmpty ? rawSummary : rawContent);
-          final isLast = index == articles.length - 1;
 
-          return Column(
-            children: [
-              InkWell(
-                onTap: () => _openArticle(context, article),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
-                  decoration: BoxDecoration(
-                    border: !isRead
-                        ? const Border(left: BorderSide(color: _accent, width: 3))
-                        : null,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                color: isRead ? _textSecondary : _textPrimary,
-                                fontSize: 15,
-                                fontWeight: isRead ? FontWeight.w400 : FontWeight.w700,
-                                letterSpacing: -0.2,
-                                height: 1.35,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (preview.isNotEmpty) ...[
-                              const SizedBox(height: 5),
-                              Text(
-                                preview,
-                                style: const TextStyle(
-                                  color: _textSecondary,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                if (author.isNotEmpty) ...[
-                                  Text(
-                                    author,
-                                    style: const TextStyle(color: _textSecondary, fontSize: 11),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const Text(' · ', style: TextStyle(color: _textSecondary, fontSize: 11)),
-                                ],
-                                Text(
-                                  _formatDate(published),
-                                  style: const TextStyle(color: _textSecondary, fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => _toggleFavorite(articleId),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 2, left: 4),
-                          child: Icon(
-                            isFav ? Icons.star_rounded : Icons.star_border_rounded,
-                            color: isFav ? _gold : _textSecondary,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          return InkWell(
+            onTap: () => _openArticle(context, article),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: _cardBg,
+                borderRadius: BorderRadius.circular(12),
               ),
-              if (!isLast)
-                const Divider(color: _divider, height: 1, indent: 20),
-            ],
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 4,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isRead ? Colors.transparent : _accent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          article['title'] as String? ?? 'Sem título',
+                          style: TextStyle(
+                            color: isRead ? _textSecondary : _textPrimary,
+                            fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if ((article['author'] as String?)?.isNotEmpty == true) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            article['author'] as String,
+                            style: const TextStyle(color: _textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isFav ? Icons.star : Icons.star_border,
+                      color: isFav ? _accent : _textSecondary,
+                      size: 20,
+                    ),
+                    onPressed: () => _toggleFavorite(articleId),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
+                  ),
+                ],
+              ),
+            ),
           );
         },
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: _textPrimary,
+        elevation: 0,
+        title: Text(
+          widget.feed['title'] as String? ?? 'Feed',
+          style: const TextStyle(color: _textPrimary, fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Marcar todos como lidos',
+            color: _textPrimary,
+            onPressed: _markAllAsRead,
+          ),
+        ],
       ),
+      body: content,
     );
   }
 }
