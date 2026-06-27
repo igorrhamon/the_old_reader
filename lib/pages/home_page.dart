@@ -462,7 +462,7 @@ class _FolderSection extends StatefulWidget {
 }
 
 class _FolderSectionState extends State<_FolderSection> {
-  bool _expanded = true;
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {

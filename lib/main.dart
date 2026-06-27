@@ -240,7 +240,20 @@ class _MainScaffoldState extends State<MainScaffold> {
                     ),
                   ),
                   _drawerItem(context, Icons.rss_feed_rounded, 'Feeds', 0),
-                  _drawerItem(context, Icons.folder_rounded, 'Pastas', 3),
+                  ListTile(
+                    leading: const Icon(Icons.folder_rounded, color: Color(0xFF8E8E93), size: 20),
+                    title: const Text('Pastas', style: TextStyle(color: Color(0xFFF2F2F7), fontSize: 15)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => FoldersPage(api: _api!)),
+                      );
+                      if (mounted) setState(() {});
+                    },
+                  ),
                   _drawerItem(context, Icons.bookmark_rounded, 'Favoritos', 1),
                   _drawerItem(context, Icons.settings_rounded, 'Configurações', 2),
                 ],
@@ -271,7 +284,6 @@ class _MainScaffoldState extends State<MainScaffold> {
                           setState(() => _api = null);
                         },
                       ),
-                      FoldersPage(api: _api!),
                     ],
                   ),
                 ),
