@@ -12,31 +12,15 @@ http.Response _jsonResponse(dynamic body, {int status = 200}) {
 
 void main() {
   group('OldReaderApi', () {
-    setUp(() {
-      OldReaderApi.setProxyPort(3000);
-    });
-
-    group('proxy config', () {
-      test('getProxyBaseUrl retorna URL com porta padrão', () {
-        OldReaderApi.setProxyPort(3000);
-        expect(OldReaderApi.getProxyBaseUrl(), 'http://localhost:3000');
+    group('baseUrl', () {
+      test('usa API direta em native (kIsWeb=false em testes)', () {
+        expect(OldReaderApi.baseUrl, 'https://theoldreader.com/reader/api/0');
       });
 
-      test('setProxyPort altera a URL', () {
+      test('setProxyPort é no-op em native', () {
         OldReaderApi.setProxyPort(9999);
-        expect(OldReaderApi.getProxyBaseUrl(), 'http://localhost:9999');
-      });
-
-      test('initializeProxy define baseUrl com /proxy', () {
+        expect(OldReaderApi.baseUrl, 'https://theoldreader.com/reader/api/0');
         OldReaderApi.setProxyPort(3000);
-        OldReaderApi.initializeProxy();
-        expect(OldReaderApi.baseUrl, 'http://localhost:3000/proxy');
-      });
-
-      test('setProxyPort atualiza baseUrl dinamicamente', () {
-        OldReaderApi.setProxyPort(4000);
-        OldReaderApi.initializeProxy();
-        expect(OldReaderApi.baseUrl, 'http://localhost:4000/proxy');
       });
     });
 

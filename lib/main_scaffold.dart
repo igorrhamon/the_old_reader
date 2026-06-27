@@ -258,7 +258,8 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      final url = Uri.parse('http://localhost:3000/proxy/accounts/ClientLogin');
+      final authBase = kIsWeb ? 'http://localhost:3000/proxy' : 'https://theoldreader.com';
+      final url = Uri.parse('$authBase/accounts/ClientLogin');
       final body =
           'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
       final response = await http.post(

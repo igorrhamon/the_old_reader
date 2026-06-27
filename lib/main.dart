@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
 import 'services/old_reader_api.dart';
@@ -6,16 +7,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'pages/favorites_page.dart';
-import 'pages/login_screen.dart';
 import 'pages/add_feed_page.dart';
 import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
-import 'proxy_config.dart'; // Import the proxy configuration
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  configureProxy();
-  OldReaderApi.initializeProxy();
   runApp(const MyApp());
 }
 
@@ -344,7 +341,8 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      final url = Uri.parse('http://localhost:3000/proxy/accounts/ClientLogin');
+      final authBase = kIsWeb ? 'http://localhost:3000/proxy' : 'https://theoldreader.com';
+      final url = Uri.parse('$authBase/accounts/ClientLogin');
       final body = 'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
       final response = await http.post(
         url,

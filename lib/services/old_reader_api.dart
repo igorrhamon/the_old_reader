@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 
 class OldReaderApi {
   final String authToken;
@@ -8,24 +8,20 @@ class OldReaderApi {
   OldReaderApi(this.authToken);
 
   // ---------------------------------------------------------------------------
-  // Proxy config
+  // Base URL - native usa API direta, web usa proxy por causa de CORS
   // ---------------------------------------------------------------------------
 
   static int _proxyPort = 3000;
-  static String baseUrl = '${getProxyBaseUrl()}/proxy';
+  static final String _nativeBase = 'https://theoldreader.com/reader/api/0';
+  static String _webBase = 'http://localhost:$_proxyPort/proxy';
+
+  static String get baseUrl => kIsWeb ? _webBase : _nativeBase;
 
   static void setProxyPort(int port) {
     _proxyPort = port;
-    baseUrl = '${getProxyBaseUrl()}/proxy';
-    debugPrint('Proxy URL atualizada para: $baseUrl');
+    _webBase = 'http://localhost:$port/proxy';
+    debugPrint('Proxy URL atualizada para: $_webBase');
   }
-
-  static void initializeProxy() {
-    baseUrl = '${getProxyBaseUrl()}/proxy';
-    debugPrint('API inicializada com proxy URL: $baseUrl');
-  }
-
-  static String getProxyBaseUrl() => 'http://localhost:$_proxyPort';
 
   // ---------------------------------------------------------------------------
   // Headers
