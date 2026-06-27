@@ -79,14 +79,20 @@ class _ArticlePageState extends State<ArticlePage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                      height: 1.25,
+                  Hero(
+                    tag: 'article_title_${article['id']}',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: _textPrimary,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
+                          height: 1.25,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -149,10 +155,9 @@ class _ArticlePageState extends State<ArticlePage> {
                           lineHeight: const LineHeight(1.75),
                           margin: Margins.only(bottom: 16),
                         ),
-                        'h1, h2, h3': Style(
-                          color: _textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        'h1': Style(color: _textPrimary, fontWeight: FontWeight.w700),
+                        'h2': Style(color: _textPrimary, fontWeight: FontWeight.w700),
+                        'h3': Style(color: _textPrimary, fontWeight: FontWeight.w700),
                         'a': Style(color: _accent),
                         'blockquote': Style(
                           color: _textSecondary,
@@ -162,15 +167,19 @@ class _ArticlePageState extends State<ArticlePage> {
                           padding: HtmlPaddings.only(left: 16),
                           fontStyle: FontStyle.italic,
                         ),
-                        'code, pre': Style(
+                        'code': Style(
                           backgroundColor: _surface,
                           color: const Color(0xFF10B981),
                           fontFamily: 'monospace',
                           fontSize: FontSize(13),
                         ),
-                        'img': Style(
-                          width: Width(double.infinity),
+                        'pre': Style(
+                          backgroundColor: _surface,
+                          color: const Color(0xFF10B981),
+                          fontFamily: 'monospace',
+                          fontSize: FontSize(13),
                         ),
+                        'img': Style(width: Width(100, Unit.percent)),
                       },
                     )
                   else

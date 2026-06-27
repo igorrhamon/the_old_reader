@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
 import 'services/old_reader_api.dart';
@@ -6,13 +5,19 @@ import 'services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'pages/login_screen.dart';
 import 'pages/favorites_page.dart';
 import 'pages/add_feed_page.dart';
 import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/folders_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final proxyUrl = const String.fromEnvironment('PROXY_URL');
+  if (proxyUrl.isNotEmpty) {
+    OldReaderApi.setOverrideBaseUrl(proxyUrl);
+  }
   runApp(const MyApp());
 }
 
@@ -235,6 +240,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                     ),
                   ),
                   _drawerItem(context, Icons.rss_feed_rounded, 'Feeds', 0),
+                  _drawerItem(context, Icons.folder_rounded, 'Pastas', 3),
                   _drawerItem(context, Icons.bookmark_rounded, 'Favoritos', 1),
                   _drawerItem(context, Icons.settings_rounded, 'Configurações', 2),
                 ],
@@ -246,40 +252,50 @@ class _MainScaffoldState extends State<MainScaffold> {
           : isLogged
           ? Stack(
               children: [
-                IndexedStack(
-                  index: _selectedIndex,
-                  children: [
-                    HomePage(api: _api!),
-                    FavoritesPage(api: _api!),
-                    SettingsPage(
-                      api: _api!,
-                      onLogout: () async {
-                        await AuthService.clearToken();
-                        setState(() => _api = null);
-                      },
-                    ),
-                  ],
-                ),                  if (_selectedIndex == 0)
-                    Positioned(
-                      bottom: 24,
-                      right: 24,
-                      child: FloatingActionButton(
-                        backgroundColor: const Color(0xFFFF6B2C),
-                        foregroundColor: Colors.white,
-                        elevation: 4,
-                        onPressed: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AddFeedPage(api: _api!),
-                            ),
-                          );
-                          if (result == true) setState(() {});
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                  child: IndexedStack(
+                    key: ValueKey(_selectedIndex),
+                    index: _selectedIndex,
+                    children: [
+                      HomePage(api: _api!),
+                      FavoritesPage(api: _api!),
+                      SettingsPage(
+                        api: _api!,
+                        onLogout: () async {
+                          await AuthService.clearToken();
+                          setState(() => _api = null);
                         },
-                        tooltip: 'Adicionar feed',
-                        child: const Icon(Icons.add_rounded),
                       ),
+                      FoldersPage(api: _api!),
+                    ],
+                  ),
+                ),
+                if (_selectedIndex == 0)
+                  Positioned(
+                    bottom: 24,
+                    right: 24,
+                    child: FloatingActionButton(
+                      backgroundColor: const Color(0xFFFF6B2C),
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddFeedPage(api: _api!),
+                          ),
+                        );
+                        if (result == true) setState(() {});
+                      },
+                      tooltip: 'Adicionar feed',
+                      child: const Icon(Icons.add_rounded),
                     ),
+                  ),
               ],
             )
           : LoginPage(onLogin: _onLogin),
@@ -341,8 +357,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      final authBase = kIsWeb ? 'http://localhost:3000/proxy' : 'https://theoldreader.com';
-      final url = Uri.parse('$authBase/accounts/ClientLogin');
+      final url = Uri.parse('${OldReaderApi.authBaseUrl}/accounts/ClientLogin');
       final body = 'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
       final response = await http.post(
         url,

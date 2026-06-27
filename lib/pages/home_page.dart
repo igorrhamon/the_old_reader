@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:xml/xml.dart';
 import 'package:flutter/material.dart';
 import '../services/old_reader_api.dart';
 import 'feed_articles_page.dart';
@@ -10,6 +10,36 @@ const _textSecondary = Color(0xFF8E8E93);
 const _divider = Color(0xFF3A3A3C);
 const _surface = Color(0xFF1C1C1E);
 
+
+// Tenta JSON primeiro; se falhar, parseia como XML (formato Old Reader object/list/string)
+Map<String, dynamic> _parseApiResponse(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) return decoded;
+  } catch (_) {}
+  // fallback XML
+  final doc = XmlDocument.parse(body);
+  return _xmlObjectToMap(doc.rootElement);
+}
+
+Map<String, dynamic> _xmlObjectToMap(XmlElement element) {
+  final map = <String, dynamic>{};
+  for (final child in element.childElements) {
+    final name = child.getAttribute('name') ?? '';
+    if (child.name.local == 'string') {
+      map[name] = child.innerText;
+    } else if (child.name.local == 'number') {
+      map[name] = num.tryParse(child.innerText) ?? 0;
+    } else if (child.name.local == 'boolean') {
+      map[name] = child.innerText == 'true';
+    } else if (child.name.local == 'list') {
+      map[name] = child.childElements.map((e) => _xmlObjectToMap(e)).toList();
+    } else if (child.name.local == 'object') {
+      map[name] = _xmlObjectToMap(child);
+    }
+  }
+  return map;
+}
 class HomePage extends StatefulWidget {
   final OldReaderApi api;
   const HomePage({super.key, required this.api});
@@ -17,10 +47,12 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 }
-
 class _HomePageState extends State<HomePage> {
   List<dynamic>? feeds;
   Map<String, int> unreadCounts = {};
+  List<String> categories = [];
+  Map<String, List<dynamic>> feedsByFolder = {};
+  List<dynamic> uncategorizedFeeds = [];
   String? error;
   bool loading = true;
 
@@ -45,19 +77,21 @@ class _HomePageState extends State<HomePage> {
       final results = await Future.wait([
         widget.api.getSubscriptions(),
         widget.api.getUnreadCounts(),
+        widget.api.getTags(),
       ]);
 
       final subsResponse = results[0];
       final unreadResponse = results[1];
+      final tagsResponse = results[2];
 
       if (subsResponse.statusCode == 200) {
-        final json = jsonDecode(subsResponse.body);
+        final json = _parseApiResponse(subsResponse.body);
         feeds = (json is Map && json.containsKey('subscriptions'))
             ? List<dynamic>.from(json['subscriptions'])
             : [];
       } else {
         setState(() {
-          error = 'Erro ao carregar feeds (${subsResponse.statusCode})';
+          error = 'Erro ao carregar feeds';
           loading = false;
         });
         return;
@@ -65,8 +99,8 @@ class _HomePageState extends State<HomePage> {
 
       if (unreadResponse.statusCode == 200) {
         try {
-          final unreadJson = jsonDecode(unreadResponse.body);
-          final List<dynamic>? counts = unreadJson['unreadcounts'];
+          final unreadJson = _parseApiResponse(unreadResponse.body);
+          final counts = unreadJson['unreadcounts'] as List?;
           if (counts != null) {
             unreadCounts = {
               for (final item in counts)
@@ -76,6 +110,38 @@ class _HomePageState extends State<HomePage> {
           }
         } catch (_) {}
       }
+
+      final folderNames = <String>{};
+      final byFolder = <String, List<dynamic>>{};
+      final uncategorized = <dynamic>[];
+      if (subsResponse.statusCode == 200 && feeds != null) {
+        for (final sub in feeds!) {
+          bool inFolder = false;
+          if (sub['categories'] is List) {
+            for (final cat in sub['categories']) {
+              if (cat is Map && cat['label'] is String) {
+                final label = cat['label'] as String;
+                if (label.startsWith('user/-/label/')) {
+                  final name = label.replaceFirst('user/-/label/', '');
+                  byFolder.putIfAbsent(name, () => []).add(sub);
+                  folderNames.add(name);
+                  inFolder = true;
+                }
+              }
+            }
+          }
+          if (!inFolder) uncategorized.add(sub);
+        }
+      }
+      if (tagsResponse.statusCode == 200) {
+        categories = widget.api.extractCategoriesFromTagsResponse(tagsResponse);
+      }
+      for (final cat in categories) {
+        folderNames.add(cat);
+      }
+      feedsByFolder = byFolder;
+      uncategorizedFeeds = uncategorized;
+      categories = folderNames.toList()..sort();
 
       setState(() => loading = false);
     } catch (e) {
@@ -91,6 +157,21 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(
         builder: (_) => FeedArticlesPage(api: widget.api, feed: feed),
+      ),
+    );
+  }
+
+  void _openFolderFeed(BuildContext context, String folderName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FeedArticlesPage(
+          api: widget.api,
+          feed: {
+            'id': 'user/-/label/$folderName',
+            'title': folderName,
+          },
+        ),
       ),
     );
   }
@@ -114,7 +195,6 @@ class _HomePageState extends State<HomePage> {
     if (title.isEmpty) return colors[0];
     return colors[title.codeUnitAt(0) % colors.length];
   }
-
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -173,24 +253,40 @@ class _HomePageState extends State<HomePage> {
             hasUnread: totalUnread > 0,
           ),
           const Divider(color: _divider, height: 1),
-          _sectionHeader('ASSINATURAS'),
-          if (allFeeds.isEmpty)
+          if (categories.isNotEmpty) ...[
+            _sectionHeader('PASTAS'),
+            ...categories.map((name) {
+              final folderFeeds = feedsByFolder[name] ?? [];
+              final folderUnread = unreadCounts['user/-/label/$name'] ?? 0;
+              return _FolderSection(
+                key: ValueKey('folder_$name'),
+                name: name,
+                unreadCount: folderUnread,
+                feeds: folderFeeds,
+                unreadCounts: unreadCounts,
+                onFolderTap: () => _openFolderFeed(context, name),
+                onFeedTap: (feed) => _openFeed(context, feed),
+              );
+            }),
+            const Divider(color: _divider, height: 1),
+          ],
+          if (uncategorizedFeeds.isNotEmpty) ...[
+            _sectionHeader('SEM CATEGORIA'),
+            ...uncategorizedFeeds.map((feed) {
+              final feedId = feed['id'] as String? ?? '';
+              final count = unreadCounts[feedId] ?? 0;
+              final title = feed['title'] as String? ?? 'Sem título';
+              return _feedTile(context, feed: feed, title: title, count: count, isLast: false);
+            }),
+          ],
+          if (allFeeds.isEmpty && categories.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 32),
               child: Text(
                 'Nenhum feed. Toque em + para adicionar.',
                 style: TextStyle(color: _textSecondary, fontSize: 14),
               ),
-            )
-          else
-            ...allFeeds.asMap().entries.map((entry) {
-              final feed = entry.value;
-              final feedId = feed['id'] as String? ?? '';
-              final count = unreadCounts[feedId] ?? 0;
-              final title = feed['title'] as String? ?? 'Sem título';
-              final isLast = entry.key == allFeeds.length - 1;
-              return _feedTile(context, feed: feed, title: title, count: count, isLast: isLast);
-            }),
+            ),
           const SizedBox(height: 80),
         ],
       ),
@@ -342,3 +438,160 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+class _FolderSection extends StatefulWidget {
+  final String name;
+  final int unreadCount;
+  final List<dynamic> feeds;
+  final Map<String, int> unreadCounts;
+  final void Function() onFolderTap;
+  final void Function(dynamic) onFeedTap;
+
+  const _FolderSection({
+    super.key,
+    required this.name,
+    required this.unreadCount,
+    required this.feeds,
+    required this.unreadCounts,
+    required this.onFolderTap,
+    required this.onFeedTap,
+  });
+
+  @override
+  State<_FolderSection> createState() => _FolderSectionState();
+}
+
+class _FolderSectionState extends State<_FolderSection> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUnread = widget.unreadCount > 0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: widget.onFolderTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              border: hasUnread
+                  ? const Border(left: BorderSide(color: _accent, width: 3))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: hasUnread ? const Color(0x1AFF6B2C) : const Color(0xFF2C2C2E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _expanded ? Icons.folder_open_rounded : Icons.folder_rounded,
+                    color: hasUnread ? _accent : _textSecondary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    widget.name,
+                    style: TextStyle(
+                      color: _textPrimary,
+                      fontSize: 14,
+                      fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (hasUnread) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _accent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      widget.unreadCount > 999 ? '999+' : widget.unreadCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+                if (widget.feeds.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                      color: _textSecondary,
+                      size: 20,
+                    ),
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (_expanded && widget.feeds.isNotEmpty)
+          ...widget.feeds.map((feed) {
+            final feedId = feed['id'] as String? ?? '';
+            final count = widget.unreadCounts[feedId] ?? 0;
+            final title = feed['title'] as String? ?? 'Sem título';
+            final hasFeedUnread = count > 0;
+            return InkWell(
+              onTap: () => widget.onFeedTap(feed),
+              child: Container(
+                padding: const EdgeInsets.only(left: 66, right: 20, top: 10, bottom: 10),
+                decoration: BoxDecoration(
+                  border: hasFeedUnread
+                      ? const Border(left: BorderSide(color: _accent, width: 2))
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 13,
+                          fontWeight: hasFeedUnread ? FontWeight.w500 : FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (hasFeedUnread) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          count > 999 ? '999+' : count.toString(),
+                          style: const TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+        const Divider(color: _divider, height: 1, indent: 16, endIndent: 16),
+      ],
+    );
+  }
+}
+
+
+
+

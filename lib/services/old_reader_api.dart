@@ -14,13 +14,28 @@ class OldReaderApi {
   static int _proxyPort = 3000;
   static final String _nativeBase = 'https://theoldreader.com/reader/api/0';
   static String _webBase = 'http://localhost:$_proxyPort/proxy';
+  static String? _overrideBaseUrl;
 
-  static String get baseUrl => kIsWeb ? _webBase : _nativeBase;
+  static String get baseUrl => _overrideBaseUrl ?? (kIsWeb ? _webBase : _nativeBase);
 
   static void setProxyPort(int port) {
     _proxyPort = port;
-    _webBase = 'http://localhost:$port/proxy';
-    debugPrint('Proxy URL atualizada para: $_webBase');
+    if (kIsWeb) _webBase = 'http://localhost:$port/proxy';
+    debugPrint('Proxy URL atualizada para: $port');
+  }
+
+  static void setOverrideBaseUrl(String url) {
+    _overrideBaseUrl = url;
+    debugPrint('Base URL sobrescrita para: $url');
+  }
+
+  static void clearOverrideBaseUrl() {
+    _overrideBaseUrl = null;
+  }
+
+  static String get authBaseUrl {
+    if (_overrideBaseUrl != null) return _overrideBaseUrl!;
+    return kIsWeb ? 'http://localhost:$_proxyPort/proxy' : 'https://theoldreader.com';
   }
 
   // ---------------------------------------------------------------------------
@@ -55,7 +70,7 @@ class OldReaderApi {
   // ---------------------------------------------------------------------------
 
   Future<http.Response> getSubscriptions() async {
-    final url = Uri.parse('$baseUrl/subscription/list');
+    final url = Uri.parse('$baseUrl/subscription/list?output=json');
     return http.get(url, headers: _headers());
   }
 
@@ -95,7 +110,7 @@ class OldReaderApi {
   // ---------------------------------------------------------------------------
 
   Future<http.Response> getUnreadCounts() async {
-    final url = Uri.parse('$baseUrl/unread-count');
+    final url = Uri.parse('$baseUrl/unread-count?output=json');
     return http.get(url, headers: _headers());
   }
 
@@ -306,6 +321,11 @@ class OldReaderApi {
     return results;
   }
 
+  Future<http.Response> getFeedItems(String feedId) async {
+    final url = Uri.parse('$baseUrl/stream/contents?output=json&s=$feedId&n=20');
+    return http.get(url, headers: _headers());
+  }
+
   Future<http.Response> getFeedItemsXml(String feedId) async {
     final url = Uri.parse('$baseUrl/stream/contents/$feedId?n=20&output=xml');
     return http.get(url, headers: _headers());
@@ -369,7 +389,7 @@ class OldReaderApi {
 
   Future<http.Response> markAllAsRead({required String stream, int? ts}) async {
     final url = Uri.parse('$baseUrl/mark-all-as-read');
-    final params = <String, String>{'s': stream};
+    final params = <String, String>{'output': 'json', 's': stream};
     if (ts != null) params['ts'] = ts.toString();
     final body = params.entries
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
@@ -429,6 +449,47 @@ class OldReaderApi {
   }
 
   // ---------------------------------------------------------------------------
+  // Folder/Stream preferences
+  // ---------------------------------------------------------------------------
+
+  Future<http.Response> getStreamPreferences() async {
+    final url = Uri.parse('$baseUrl/preference/stream/list?output=json');
+    return http.get(url, headers: _headers());
+  }
+
+  Future<http.Response> setStreamPreferences({
+    required String streamId,
+    required Map<String, String> prefs,
+  }) async {
+    final url = Uri.parse('$baseUrl/preference/stream/set');
+    final body = 's=$streamId&${prefs.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    return http.post(url, headers: _headersWithContentType(), body: body);
+  }
+
+  /// Parses stream preferences into a map: streamId -> {order: int, ...}
+  Future<Map<String, Map<String, dynamic>>> getStreamPreferencesAsMap() async {
+    try {
+      final resp = await getStreamPreferences();
+      if (resp.statusCode != 200) return {};
+      final data = jsonDecode(resp.body);
+      final List<dynamic>? prefs = data['streamprefs'];
+      if (prefs == null) return {};
+      final result = <String, Map<String, dynamic>>{};
+      for (final entry in prefs) {
+        final id = entry['id'] as String?;
+        final pref = entry['pref'] as Map<String, dynamic>?;
+        if (id != null && pref != null) {
+          result[id] = pref;
+        }
+      }
+      return result;
+    } catch (e) {
+      debugPrint('Erro ao parsear stream preferences: $e');
+      return {};
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Friends
   // ---------------------------------------------------------------------------
 
@@ -460,3 +521,10 @@ class OldReaderApi {
     return http.post(url, headers: _headersWithContentType(), body: body);
   }
 }
+
+
+
+
+
+
+
