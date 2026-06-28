@@ -174,6 +174,12 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     final isLogged = _provider != null;
     final providerName = _provider?.displayName ?? 'The Old Reader';
+    if (_loadingAuth) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0F0F),
+        body: _SplashScreen(),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -265,9 +271,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               ),
             )
           : null,
-      body: _loadingAuth
-          ? const Center(child: CircularProgressIndicator())
-          : isLogged
+      body: isLogged
           ? Stack(
               children: [
                 AnimatedSwitcher(
@@ -472,6 +476,37 @@ class _LoginPageState extends State<LoginPage> {
       error: _error,
       onForgotPassword: _onForgotPassword,
       onSignUp: _onSignUp,
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFF0F0F0F),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image(
+              image: AssetImage('assets/images/logo.png'),
+              width: 140,
+            ),
+            SizedBox(height: 40),
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: Color(0xFFFF6B2C),
+                strokeWidth: 2.5,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
