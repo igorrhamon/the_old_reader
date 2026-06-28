@@ -362,6 +362,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _apiKeyController = TextEditingController();
+  final _baseUrlController = TextEditingController();
   String? _error;
   bool _loading = false;
   String _selectedProviderId = 'theoldreader';
@@ -373,6 +374,12 @@ class _LoginPageState extends State<LoginPage> {
 
   bool get _isApiKeyAuth =>
       _selectedProviderInfo?.authTypes.contains(AuthType.apiKey) ?? false;
+
+  bool get _isBasicAuth =>
+      _selectedProviderInfo?.authTypes.contains(AuthType.basicAuth) ?? false;
+
+  bool get _requiresBaseUrl =>
+      _selectedProviderInfo?.requiresBaseUrl ?? false;
 
   void _login() async {
     setState(() {
@@ -400,9 +407,28 @@ class _LoginPageState extends State<LoginPage> {
           });
           return;
         }
+        final baseUrl = _baseUrlController.text.trim();
         config = ApiKeyAuthConfig(
           providerId: _selectedProviderId,
           apiKey: apiKey,
+          baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
+        );
+      } else if (_isBasicAuth) {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text;
+        if (email.isEmpty || password.isEmpty) {
+          setState(() {
+            _error = 'Informe o e-mail/usuário e a senha.';
+            _loading = false;
+          });
+          return;
+        }
+        final baseUrl = _baseUrlController.text.trim();
+        config = BasicAuthConfig(
+          providerId: _selectedProviderId,
+          username: email,
+          password: password,
+          baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
         );
       } else {
         final email = _emailController.text.trim();
@@ -428,6 +454,8 @@ class _LoginPageState extends State<LoginPage> {
         if (config is GoogleLoginAuthConfig) {
           await ProviderSettings.saveAuthConfig(_selectedProviderId, config);
         } else if (config is ApiKeyAuthConfig) {
+          await ProviderSettings.saveAuthConfig(_selectedProviderId, config);
+        } else if (config is BasicAuthConfig) {
           await ProviderSettings.saveAuthConfig(_selectedProviderId, config);
         }
         if (widget.onLogin != null) widget.onLogin!(provider);
@@ -464,9 +492,11 @@ class _LoginPageState extends State<LoginPage> {
       emailController: _emailController,
       passwordController: _passwordController,
       apiKeyController: _apiKeyController,
+      baseUrlController: _baseUrlController,
       selectedProviderId: _selectedProviderId,
       availableProviders: _availableProviders,
       isApiKeyAuth: _isApiKeyAuth,
+      requiresBaseUrl: _requiresBaseUrl,
       onProviderChanged: (id) => setState(() {
         _selectedProviderId = id;
         _error = null;

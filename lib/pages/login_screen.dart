@@ -11,9 +11,11 @@ class LoginScreen extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController apiKeyController;
+  final TextEditingController baseUrlController;
   final String selectedProviderId;
   final List<ProviderInfo> availableProviders;
   final bool isApiKeyAuth;
+  final bool requiresBaseUrl;
   final ValueChanged<String> onProviderChanged;
   final VoidCallback onLogin;
   final bool loading;
@@ -26,9 +28,11 @@ class LoginScreen extends StatelessWidget {
     required this.emailController,
     required this.passwordController,
     required this.apiKeyController,
+    required this.baseUrlController,
     required this.selectedProviderId,
     required this.availableProviders,
     required this.isApiKeyAuth,
+    this.requiresBaseUrl = false,
     required this.onProviderChanged,
     required this.onLogin,
     this.loading = false,
@@ -101,6 +105,17 @@ Image.asset(
               ),
               const SizedBox(height: 20),
               if (isApiKeyAuth) ...[
+                if (requiresBaseUrl) ...[
+                  _label('URL do Servidor'),
+                  const SizedBox(height: 8),
+                  _field(
+                    controller: baseUrlController,
+                    hint: 'https://seu-servidor.com/path',
+                    keyboardType: TextInputType.url,
+                    enabled: !loading,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _label('API Key'),
                 const SizedBox(height: 8),
                 _field(
@@ -109,7 +124,18 @@ Image.asset(
                   enabled: !loading,
                 ),
               ] else ...[
-                _label('E-mail'),
+                if (requiresBaseUrl) ...[
+                  _label('URL do Servidor'),
+                  const SizedBox(height: 8),
+                  _field(
+                    controller: baseUrlController,
+                    hint: 'https://seu-servidor.com/api/greader.php',
+                    keyboardType: TextInputType.url,
+                    enabled: !loading,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                _label('E-mail / Usuário'),
                 const SizedBox(height: 8),
                 _field(
                   controller: emailController,

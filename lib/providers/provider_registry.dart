@@ -4,12 +4,14 @@ class ProviderInfo {
   final String id;
   final String name;
   final bool supportsWebProxy;
+  final bool requiresBaseUrl;
   final List<AuthType> authTypes;
 
   const ProviderInfo({
     required this.id,
     required this.name,
-    required this.supportsWebProxy,
+    this.supportsWebProxy = false,
+    this.requiresBaseUrl = false,
     required this.authTypes,
   });
 }

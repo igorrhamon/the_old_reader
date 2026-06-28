@@ -28,6 +28,7 @@ void main() {
         emailController: TextEditingController(),
         passwordController: TextEditingController(),
         apiKeyController: TextEditingController(),
+        baseUrlController: TextEditingController(),
         selectedProviderId: 'test_provider',
         availableProviders: ProviderRegistry.getAvailableProviders(),
         isApiKeyAuth: false,
@@ -42,7 +43,7 @@ void main() {
   testWidgets('exibe campos de email e senha', (WidgetTester tester) async {
     await tester.pumpWidget(buildLoginScreen());
 
-    expect(find.text('E-mail'), findsOneWidget);
+    expect(find.text('E-mail / Usuário'), findsOneWidget);
     expect(find.text('Senha'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));
   });
