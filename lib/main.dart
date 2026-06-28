@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
     const outline = Color(0xFF3A3A3C);
 
     return MaterialApp(
-      title: 'The Old Reader',
+      title: 'FeedFlow',
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
@@ -173,7 +173,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     final isLogged = _provider != null;
-    final providerName = _provider?.displayName ?? 'The Old Reader';
+    final providerName = _provider?.displayName ?? 'FeedFlow';
     if (_loadingAuth) {
       return const Scaffold(
         backgroundColor: Color(0xFF0F0F0F),
