@@ -119,7 +119,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       final providerId = activeProviderId ?? 'theoldreader';
 
       final storedAuth = await ProviderSettings.loadAuthConfig(providerId);
-      if (storedAuth != null && storedAuth is GoogleLoginAuthConfig) {
+      if (storedAuth != null) {
         final provider = ProviderRegistry.create(providerId);
         if (provider != null) {
           final result = await provider.authenticate(storedAuth);
@@ -357,26 +357,27 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _apiKeyController = TextEditingController();
   String? _error;
   bool _loading = false;
+  String _selectedProviderId = 'theoldreader';
+
+  List<ProviderInfo> get _availableProviders => ProviderRegistry.getAvailableProviders();
+
+  ProviderInfo? get _selectedProviderInfo =>
+      _availableProviders.where((p) => p.id == _selectedProviderId).firstOrNull;
+
+  bool get _isApiKeyAuth =>
+      _selectedProviderInfo?.authTypes.contains(AuthType.apiKey) ?? false;
 
   void _login() async {
     setState(() {
       _loading = true;
       _error = null;
     });
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _error = 'Informe o e-mail e a senha.';
-        _loading = false;
-      });
-      return;
-    }
 
     try {
-      final provider = ProviderRegistry.create('theoldreader');
+      final provider = ProviderRegistry.create(_selectedProviderId);
       if (provider == null) {
         setState(() {
           _error = 'Provider não disponível.';
@@ -385,23 +386,52 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      final config = GoogleLoginAuthConfig(
-        providerId: 'theoldreader',
-        email: email,
-        password: password,
-        authToken: '',
-      );
+      Object config;
+      if (_isApiKeyAuth) {
+        final apiKey = _apiKeyController.text.trim();
+        if (apiKey.isEmpty) {
+          setState(() {
+            _error = 'Informe a API key.';
+            _loading = false;
+          });
+          return;
+        }
+        config = ApiKeyAuthConfig(
+          providerId: _selectedProviderId,
+          apiKey: apiKey,
+        );
+      } else {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text;
+        if (email.isEmpty || password.isEmpty) {
+          setState(() {
+            _error = 'Informe o e-mail e a senha.';
+            _loading = false;
+          });
+          return;
+        }
+        config = GoogleLoginAuthConfig(
+          providerId: _selectedProviderId,
+          email: email,
+          password: password,
+          authToken: '',
+        );
+      }
 
       final result = await provider.authenticate(config);
       if (result.success) {
-        await ProviderSettings.setActiveProvider('theoldreader');
-        await ProviderSettings.saveAuthConfig('theoldreader', config);
+        await ProviderSettings.setActiveProvider(_selectedProviderId);
+        if (config is GoogleLoginAuthConfig) {
+          await ProviderSettings.saveAuthConfig(_selectedProviderId, config);
+        } else if (config is ApiKeyAuthConfig) {
+          await ProviderSettings.saveAuthConfig(_selectedProviderId, config);
+        }
         if (widget.onLogin != null) widget.onLogin!(provider);
         return;
       }
 
       setState(() {
-        _error = result.error ?? 'E-mail ou senha inválidos.';
+        _error = result.error ?? 'Credenciais inválidas.';
         _loading = false;
       });
     } catch (e) {
@@ -429,6 +459,14 @@ class _LoginPageState extends State<LoginPage> {
     return LoginScreen(
       emailController: _emailController,
       passwordController: _passwordController,
+      apiKeyController: _apiKeyController,
+      selectedProviderId: _selectedProviderId,
+      availableProviders: _availableProviders,
+      isApiKeyAuth: _isApiKeyAuth,
+      onProviderChanged: (id) => setState(() {
+        _selectedProviderId = id;
+        _error = null;
+      }),
       onLogin: _loading ? () {} : _login,
       loading: _loading,
       error: _error,

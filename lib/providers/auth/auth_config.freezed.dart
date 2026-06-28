@@ -1363,7 +1363,7 @@ AuthResult _$AuthResultFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$AuthResult {
   bool get success => throw _privateConstructorUsedError;
-  GoogleLoginAuthConfig? get config => throw _privateConstructorUsedError;
+  Object? get config => throw _privateConstructorUsedError;
   String? get error => throw _privateConstructorUsedError;
   String? get userId => throw _privateConstructorUsedError;
   String? get userName => throw _privateConstructorUsedError;
@@ -1387,13 +1387,11 @@ abstract class $AuthResultCopyWith<$Res> {
   @useResult
   $Res call({
     bool success,
-    GoogleLoginAuthConfig? config,
+    Object? config,
     String? error,
     String? userId,
     String? userName,
   });
-
-  $GoogleLoginAuthConfigCopyWith<$Res>? get config;
 }
 
 /// @nodoc
@@ -1424,11 +1422,7 @@ class _$AuthResultCopyWithImpl<$Res, $Val extends AuthResult>
                     ? _value.success
                     : success // ignore: cast_nullable_to_non_nullable
                         as bool,
-            config:
-                freezed == config
-                    ? _value.config
-                    : config // ignore: cast_nullable_to_non_nullable
-                        as GoogleLoginAuthConfig?,
+            config: freezed == config ? _value.config : config,
             error:
                 freezed == error
                     ? _value.error
@@ -1448,20 +1442,6 @@ class _$AuthResultCopyWithImpl<$Res, $Val extends AuthResult>
           as $Val,
     );
   }
-
-  /// Create a copy of AuthResult
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $GoogleLoginAuthConfigCopyWith<$Res>? get config {
-    if (_value.config == null) {
-      return null;
-    }
-
-    return $GoogleLoginAuthConfigCopyWith<$Res>(_value.config!, (value) {
-      return _then(_value.copyWith(config: value) as $Val);
-    });
-  }
 }
 
 /// @nodoc
@@ -1475,14 +1455,11 @@ abstract class _$$AuthResultImplCopyWith<$Res>
   @useResult
   $Res call({
     bool success,
-    GoogleLoginAuthConfig? config,
+    Object? config,
     String? error,
     String? userId,
     String? userName,
   });
-
-  @override
-  $GoogleLoginAuthConfigCopyWith<$Res>? get config;
 }
 
 /// @nodoc
@@ -1512,11 +1489,7 @@ class __$$AuthResultImplCopyWithImpl<$Res>
                 ? _value.success
                 : success // ignore: cast_nullable_to_non_nullable
                     as bool,
-        config:
-            freezed == config
-                ? _value.config
-                : config // ignore: cast_nullable_to_non_nullable
-                    as GoogleLoginAuthConfig?,
+        config: freezed == config ? _value.config : config,
         error:
             freezed == error
                 ? _value.error
@@ -1554,7 +1527,7 @@ class _$AuthResultImpl implements _AuthResult {
   @override
   final bool success;
   @override
-  final GoogleLoginAuthConfig? config;
+  final Object? config;
   @override
   final String? error;
   @override
@@ -1573,7 +1546,7 @@ class _$AuthResultImpl implements _AuthResult {
         (other.runtimeType == runtimeType &&
             other is _$AuthResultImpl &&
             (identical(other.success, success) || other.success == success) &&
-            (identical(other.config, config) || other.config == config) &&
+            const DeepCollectionEquality().equals(other.config, config) &&
             (identical(other.error, error) || other.error == error) &&
             (identical(other.userId, userId) || other.userId == userId) &&
             (identical(other.userName, userName) ||
@@ -1582,8 +1555,14 @@ class _$AuthResultImpl implements _AuthResult {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, success, config, error, userId, userName);
+  int get hashCode => Object.hash(
+    runtimeType,
+    success,
+    const DeepCollectionEquality().hash(config),
+    error,
+    userId,
+    userName,
+  );
 
   /// Create a copy of AuthResult
   /// with the given fields replaced by the non-null parameter values.
@@ -1602,7 +1581,7 @@ class _$AuthResultImpl implements _AuthResult {
 abstract class _AuthResult implements AuthResult {
   const factory _AuthResult({
     required final bool success,
-    final GoogleLoginAuthConfig? config,
+    final Object? config,
     final String? error,
     final String? userId,
     final String? userName,
@@ -1614,7 +1593,7 @@ abstract class _AuthResult implements AuthResult {
   @override
   bool get success;
   @override
-  GoogleLoginAuthConfig? get config;
+  Object? get config;
   @override
   String? get error;
   @override

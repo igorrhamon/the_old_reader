@@ -113,12 +113,7 @@ Map<String, dynamic> _$$LocalOpmlAuthConfigImplToJson(
 _$AuthResultImpl _$$AuthResultImplFromJson(Map<String, dynamic> json) =>
     _$AuthResultImpl(
       success: json['success'] as bool,
-      config:
-          json['config'] == null
-              ? null
-              : GoogleLoginAuthConfig.fromJson(
-                json['config'] as Map<String, dynamic>,
-              ),
+      config: json['config'],
       error: json['error'] as String?,
       userId: json['userId'] as String?,
       userName: json['userName'] as String?,

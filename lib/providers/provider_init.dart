@@ -1,6 +1,7 @@
 import 'provider_registry.dart';
 import 'feed_provider.dart';
 import 'theoldreader/theoldreader_provider.dart';
+import 'inoreader/inoreader_provider.dart';
 
 void initializeProviders() {
   ProviderRegistry.register(
@@ -11,6 +12,17 @@ void initializeProviders() {
       name: 'The Old Reader',
       supportsWebProxy: true,
       authTypes: [AuthType.googleLogin],
+    ),
+  );
+
+  ProviderRegistry.register(
+    'inoreader',
+    () => InoreaderProvider(),
+    const ProviderInfo(
+      id: 'inoreader',
+      name: 'Inoreader',
+      supportsWebProxy: true,
+      authTypes: [AuthType.apiKey],
     ),
   );
 }

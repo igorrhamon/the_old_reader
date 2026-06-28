@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../providers/provider_registry.dart';
 
 const _accent = Color(0xFFFF6B2C);
 const _bg = Color(0xFF0F0F0F);
@@ -9,6 +10,11 @@ const _textSecondary = Color(0xFF8E8E93);
 class LoginScreen extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final TextEditingController apiKeyController;
+  final String selectedProviderId;
+  final List<ProviderInfo> availableProviders;
+  final bool isApiKeyAuth;
+  final ValueChanged<String> onProviderChanged;
   final VoidCallback onLogin;
   final bool loading;
   final String? error;
@@ -19,6 +25,11 @@ class LoginScreen extends StatelessWidget {
     super.key,
     required this.emailController,
     required this.passwordController,
+    required this.apiKeyController,
+    required this.selectedProviderId,
+    required this.availableProviders,
+    required this.isApiKeyAuth,
+    required this.onProviderChanged,
     required this.onLogin,
     this.loading = false,
     this.error,
@@ -37,7 +48,6 @@ class LoginScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo mark
               Container(
                 width: 48,
                 height: 48,
@@ -59,40 +69,76 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               const Text(
-                'The Old Reader',
+                'Selecione o provedor e entre com suas credenciais',
                 style: TextStyle(
-                  color: _accent,
+                  color: _textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 36),
-              _label('E-mail'),
+              const SizedBox(height: 28),
+              _label('Provedor'),
               const SizedBox(height: 8),
-              _field(
-                controller: emailController,
-                hint: 'seu@email.com',
-                keyboardType: TextInputType.emailAddress,
-                enabled: !loading,
-              ),
-              const SizedBox(height: 16),
-              _label('Senha'),
-              const SizedBox(height: 8),
-              _field(
-                controller: passwordController,
-                hint: '••••••••',
-                obscure: true,
-                enabled: !loading,
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: onForgotPassword,
-                child: const Text(
-                  'Esqueceu a senha?',
-                  style: TextStyle(color: _textSecondary, fontSize: 13),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: _surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF3A3A3C)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedProviderId,
+                    isExpanded: true,
+                    dropdownColor: _surface,
+                    style: const TextStyle(color: _textPrimary, fontSize: 15),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _textSecondary),
+                    onChanged: loading ? null : (v) { if (v != null) onProviderChanged(v); },
+                    items: availableProviders.map((p) => DropdownMenuItem(
+                      value: p.id,
+                      child: Text(p.name),
+                    )).toList(),
+                  ),
                 ),
               ),
+              const SizedBox(height: 20),
+              if (isApiKeyAuth) ...[
+                _label('API Key'),
+                const SizedBox(height: 8),
+                _field(
+                  controller: apiKeyController,
+                  hint: 'Cole sua API key aqui',
+                  enabled: !loading,
+                ),
+              ] else ...[
+                _label('E-mail'),
+                const SizedBox(height: 8),
+                _field(
+                  controller: emailController,
+                  hint: 'seu@email.com',
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !loading,
+                ),
+                const SizedBox(height: 16),
+                _label('Senha'),
+                const SizedBox(height: 8),
+                _field(
+                  controller: passwordController,
+                  hint: '••••••••',
+                  obscure: true,
+                  enabled: !loading,
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: onForgotPassword,
+                  child: const Text(
+                    'Esqueceu a senha?',
+                    style: TextStyle(color: _textSecondary, fontSize: 13),
+                  ),
+                ),
+              ],
               const SizedBox(height: 28),
               if (error != null) ...[
                 Container(

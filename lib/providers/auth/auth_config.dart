@@ -81,7 +81,7 @@ class LocalOpmlAuthConfig with _$LocalOpmlAuthConfig {
 class AuthResult with _$AuthResult {
   const factory AuthResult({
     required bool success,
-    GoogleLoginAuthConfig? config,
+    Object? config,
     String? error,
     String? userId,
     String? userName,
