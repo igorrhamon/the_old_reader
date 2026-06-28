@@ -38,14 +38,10 @@ class LoginScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Logo mark
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _accent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.rss_feed_rounded, color: Colors.white, size: 26),
+              Image.asset(
+                'assets/images/logo.png',
+                width: 80,
+                height: 80,
               ),
               const SizedBox(height: 28),
               const Text(
