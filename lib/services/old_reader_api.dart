@@ -101,7 +101,7 @@ class OldReaderApi {
 
   Future<http.Response> removeSubscription(String streamId) async {
     final url = Uri.parse('$baseUrl/subscription/edit');
-    final body = 'ac=unsubscribe&s=$streamId';
+    final body = 'ac=unsubscribe&s=${Uri.encodeComponent(streamId)}';
     return http.post(url, headers: _headersWithContentType(), body: body);
   }
 
@@ -128,13 +128,13 @@ class OldReaderApi {
     required String to,
   }) async {
     final url = Uri.parse('$baseUrl/rename-tag');
-    final body = 's=$from&dest=$to';
+    final body = 's=${Uri.encodeComponent(from)}&dest=${Uri.encodeComponent(to)}';
     return http.post(url, headers: _headersWithContentType(), body: body);
   }
 
   Future<http.Response> removeTag(String tag) async {
     final url = Uri.parse('$baseUrl/disable-tag');
-    final body = 's=$tag';
+    final body = 's=${Uri.encodeComponent(tag)}';
     return http.post(url, headers: _headersWithContentType(), body: body);
   }
 
@@ -363,8 +363,8 @@ class OldReaderApi {
     for (final id in itemIds) {
       params.add('i=${Uri.encodeComponent(id)}');
     }
-    if (add != null) params.add('a=$add');
-    if (remove != null) params.add('r=$remove');
+    if (add != null) params.add('a=${Uri.encodeComponent(add)}');
+    if (remove != null) params.add('r=${Uri.encodeComponent(remove)}');
     if (annotation != null) {
       params.add('annotation=${Uri.encodeComponent(annotation)}');
     }
@@ -462,7 +462,7 @@ class OldReaderApi {
     required Map<String, String> prefs,
   }) async {
     final url = Uri.parse('$baseUrl/preference/stream/set');
-    final body = 's=$streamId&${prefs.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    final body = 's=${Uri.encodeComponent(streamId)}&${prefs.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
     return http.post(url, headers: _headersWithContentType(), body: body);
   }
 
@@ -503,7 +503,7 @@ class OldReaderApi {
     required String u,
   }) async {
     final url = Uri.parse('$baseUrl/friend/edit');
-    final body = 'action=$action&u=$u';
+    final body = 'action=${Uri.encodeComponent(action)}&u=${Uri.encodeComponent(u)}';
     return http.post(url, headers: _headersWithContentType(), body: body);
   }
 
