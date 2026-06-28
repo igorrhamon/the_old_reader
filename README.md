@@ -33,10 +33,8 @@ Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva
 - ✅ Marcação de leitura / não lida
 - ✅ Favoritos (starred) com sincronização
 - ✅ Gerenciamento de assinaturas (adicionar/remover feeds)
-- ✅ Categorias e tags
+- ✅ Navegação por pastas e categorias
 - ✅ Busca de artigos
-- ✅ Exportação OPML
-- ✅ Suporte a amigos e comentários
 - 🌐 Proxy Node.js embutido para CORS na web
 
 ## 🚀 Começando
@@ -71,7 +69,7 @@ flutter run
 **Web** (requer proxy para CORS):
 ```bash
 # Terminal 1: proxy
-node proxy.js
+node proxy/proxy.js
 
 # Terminal 2: Flutter
 flutter run -d web-server --web-port 8000 --web-hostname 127.0.0.1
@@ -91,16 +89,16 @@ pwsh .\start-web-app.ps1
 
 ### Proxy (debug)
 ```bash
-node proxy-debug.js
+node proxy/proxy-debug.js
 ```
 
 ## 🧪 Testes
 
 ```bash
-# Testes unitários Flutter
+# Testes de widget Flutter
 flutter test
 
-# Testes E2E com Playwright (requer variáveis de ambiente)
+# Testes E2E com Playwright (requer proxy e variáveis de ambiente)
 export the_old_reader_email="seu@email.com"
 export the_old_reader_password="sua_senha"
 npx playwright test
@@ -110,33 +108,49 @@ npx playwright test
 
 ```
 lib/
-├── main.dart                  # Entry point
-├── main_scaffold.dart         # Navegação principal
-├── proxy_config.dart          # Configuração da porta do proxy
+├── main.dart                        # Entry point
+├── main_scaffold.dart               # Navegação principal (bottom nav + drawer)
+├── models/                          # Modelos Freezed (Feed, Article, Category)
+│   ├── feed.dart
+│   ├── article.dart
+│   └── category.dart
+├── providers/                       # Abstração multi-provider
+│   ├── feed_provider.dart           # Interface FeedProvider
+│   ├── provider_registry.dart       # Registro de providers
+│   ├── provider_init.dart
+│   └── theoldreader/
+│       └── theoldreader_provider.dart
 ├── services/
-│   └── old_reader_api.dart    # HTTP client (~37 métodos)
+│   ├── old_reader_api.dart          # HTTP client (~37 métodos)
+│   ├── auth_service.dart            # Autenticação e token
+│   └── provider_settings.dart      # Configurações do provider
 ├── managers/
-│   └── favorites_manager.dart # Estado de favoritos
+│   └── favorites_manager.dart      # Estado de favoritos
 └── pages/
-    ├── login_screen.dart      # Login
-    ├── home_page.dart         # Lista de feeds
-    ├── feed_articles_page.dart
-    ├── feed_articles_page_xml.dart
-    ├── article_page.dart      # Leitura de artigo
-    ├── favorites_page.dart    # Itens favoritados
-    ├── subscriptions_page.dart
-    ├── search_page.dart       # Busca de artigos
-    └── settings_page.dart     # Configurações
+    ├── login_screen.dart            # Login
+    ├── home_page.dart               # Lista de feeds
+    ├── feed_articles_page.dart      # Artigos de um feed (JSON)
+    ├── feed_articles_page_xml.dart  # Artigos (fallback XML)
+    ├── article_page.dart            # Leitura de artigo
+    ├── favorites_page.dart          # Itens favoritados
+    ├── folders_page.dart            # Pastas/categorias
+    ├── folder_feeds_page.dart       # Feeds de uma pasta
+    ├── add_feed_page.dart           # Adicionar assinatura
+    ├── subscriptions_page.dart      # Gerenciar assinaturas
+    ├── search_page.dart             # Busca de artigos
+    └── settings_page.dart          # Configurações
 
 proxy/
-├── proxy.js                   # Servidor Express principal
-├── proxy-debug.js             # Versão com logs detalhados
-├── health-check.js            # Health-check da API
-├── config.json                # Configurações
-└── test-quickadd.js           # Teste de adição de feeds
+├── proxy.js                         # Servidor Express principal
+├── proxy-debug.js                   # Versão com logs detalhados
+├── proxy-test.js                    # Testes do proxy
+├── health-check.js                  # Health-check da API
+├── check-port.js                    # Verificação de porta
+├── config.json                      # Configurações
+└── test-quickadd.js                 # Teste de adição de feeds
 
 tests/
-└── login.spec.ts              # Teste E2E Playwright
+└── login.spec.ts                    # Teste E2E Playwright
 ```
 
 ## 🛠️ Stack
@@ -144,12 +158,13 @@ tests/
 | Camada | Tecnologia |
 |--------|-----------|
 | **Frontend** | Flutter + Dart 3.7 |
+| **Modelos** | Freezed + json_serializable |
 | **HTTP Client** | `http` ^1.2.1 |
 | **Parsing RSS** | `xml` ^6.3.0 |
 | **Renderização HTML** | `flutter_html` ^3.0.0 |
+| **Credenciais** | `flutter_secure_storage` |
 | **Persistência** | `shared_preferences` |
 | **Proxy** | Node.js + Express |
-| **Estado** | `setState` (Provider importado, não integrado) |
 | **Testes E2E** | Playwright |
 
 ## 📄 Licença
