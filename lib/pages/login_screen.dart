@@ -37,13 +37,13 @@ class LoginScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo mark
-              Image.asset(
-                'assets/images/logo.png',
-                width: 80,
-                height: 80,
+              Center(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 120,
+                ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               const Text(
                 'Entrar',
                 style: TextStyle(
