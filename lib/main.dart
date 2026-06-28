@@ -8,6 +8,7 @@ import 'providers/auth/auth_config.dart';
 import 'services/provider_settings.dart';
 
 import 'pages/login_screen.dart';
+import 'widget/feed_widget_service.dart';
 import 'pages/favorites_page.dart';
 import 'pages/add_feed_page.dart';
 import 'pages/search_page.dart';
@@ -16,6 +17,7 @@ import 'pages/folders_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FeedWidgetService.initialize();
   initializeProviders();
   runApp(const MyApp());
 }

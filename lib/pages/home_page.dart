@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import '../providers/feed_provider.dart';
 import '../models/feed.dart';
 import '../models/category.dart';
+import '../widget/feed_widget_service.dart';
 import 'feed_articles_page.dart';
 import 'folder_feeds_page.dart';
 
 const _accent = Color(0xFFFF6B2C);
+const _maxWidgetArticles = 5;
 const _textPrimary = Color(0xFFF2F2F7);
 const _textSecondary = Color(0xFF8E8E93);
 const _divider = Color(0xFF3A3A3C);
@@ -72,6 +74,16 @@ class _HomePageState extends State<HomePage> {
       uncategorizedFeeds = uncategorized;
 
       setState(() => loading = false);
+
+      // Update Android home widget with latest unread articles (fire-and-forget)
+      widget.provider
+          .getArticles(
+            streamId: 'user/-/state/com.google/reading-list',
+            limit: _maxWidgetArticles,
+            excludeRead: true,
+          )
+          .then((result) => FeedWidgetService.update(result.articles))
+          .catchError((_) {}); // Ignore widget update errors silently
     } catch (e) {
       setState(() {
         error = 'Erro: $e';
