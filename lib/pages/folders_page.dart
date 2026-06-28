@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/old_reader_api.dart';
 import 'feed_articles_page.dart';
+import 'folder_feeds_page.dart';
 
 class FoldersPage extends StatefulWidget {
   final OldReaderApi api;
@@ -164,12 +165,9 @@ class _FoldersPageState extends State<FoldersPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => FeedArticlesPage(
+        builder: (_) => FolderFeedsPage(
           api: widget.api,
-          feed: {
-            'id': 'user/-/label/$folderName',
-            'title': folderName,
-          },
+          folderName: folderName,
         ),
       ),
     );

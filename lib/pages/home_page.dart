@@ -3,6 +3,7 @@ import 'package:xml/xml.dart';
 import 'package:flutter/material.dart';
 import '../services/old_reader_api.dart';
 import 'feed_articles_page.dart';
+import 'folder_feeds_page.dart';
 
 const _accent = Color(0xFFFF6B2C);
 const _textPrimary = Color(0xFFF2F2F7);
@@ -165,12 +166,9 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => FeedArticlesPage(
+        builder: (_) => FolderFeedsPage(
           api: widget.api,
-          feed: {
-            'id': 'user/-/label/$folderName',
-            'title': folderName,
-          },
+          folderName: folderName,
         ),
       ),
     );
