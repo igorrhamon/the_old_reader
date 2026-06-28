@@ -2,7 +2,7 @@
 
 # 📰 The Old Reader
 
-**Cliente Flutter para o [The Old Reader](https://theoldreader.com) — um leitor RSS moderno e multiplataforma**
+**Multi-provider RSS reader client built with Flutter — supporting 8 RSS providers through a unified interface**
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.7+-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.7+-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
@@ -22,20 +22,37 @@
 
 ## ✨ Sobre
 
-Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva. O app se conecta à sua conta do [The Old Reader](https://theoldreader.com) para sincronizar leituras, favoritos e assinaturas entre todos os seus dispositivos.
+Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva. O app suporta **8 providers RSS** através de uma interface comum, permitindo conectar-se à sua conta preferida com uma única interface.
 
 > 📖 Documentação técnica completa em [ARCHITECTURE.md](ARCHITECTURE.md).
 
+### Providers Suportados
+
+| Provider | Tipo | Self-hosted | Auth |
+|----------|------|-------------|------|
+| **The Old Reader** | Google Reader API | ❌ | Email/Senha |
+| **Inoreader** | Google Reader API | ❌ | API Key |
+| **FreshRSS** | Google Reader API | ✅ | Email/Senha |
+| **Miniflux** | REST API | ✅ | API Key |
+| **Tiny Tiny RSS** | Custom API | ✅ | Email/Senha |
+| **Feedbin** | REST API | ❌ | Email/Senha |
+| **NewsBlur** | Custom API | ✅ | Email/Senha |
+| **Local OPML** | File-based | N/A | Nenhum |
+
 ### Funcionalidades
 
-- ✅ Login com conta do Old Reader
+- 🔐 Login multi-provider com seleção dinâmica
+- 📱 Interface responsiva com Material Design 3
 - ✅ Visualização de feeds e artigos
-- ✅ Marcação de leitura / não lida
-- ✅ Favoritos (starred) com sincronização
-- ✅ Gerenciamento de assinaturas (adicionar/remover feeds)
-- ✅ Navegação por pastas e categorias
-- ✅ Busca de artigos
+- ⭐ Marcação de leitura / não lida
+- 🔖 Favoritos (starred) com sincronização
+- 📂 Gerenciamento de assinaturas (adicionar/remover feeds)
+- 📁 Navegação por pastas e categorias
+- 🔍 Busca de artigos
 - 🌐 Proxy Node.js embutido para CORS na web
+- 🔒 Credenciais criptografadas via flutter_secure_storage
+
+---
 
 ## 🚀 Começando
 
@@ -43,7 +60,7 @@ Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) ^3.7.0
 - [Node.js](https://nodejs.org) ^18
-- Conta no [The Old Reader](https://theoldreader.com)
+- Conta em um dos providers suportados
 
 ### Instalação
 
@@ -92,11 +109,16 @@ pwsh .\start-web-app.ps1
 node proxy/proxy-debug.js
 ```
 
+---
+
 ## 🧪 Testes
 
 ```bash
 # Testes de widget Flutter
-flutter test
+flutter test --reporter expanded
+
+# Análise estática
+flutter analyze
 
 # Testes E2E com Playwright (requer proxy e variáveis de ambiente)
 export the_old_reader_email="seu@email.com"
@@ -104,54 +126,72 @@ export the_old_reader_password="sua_senha"
 npx playwright test
 ```
 
+---
+
 ## 🏗️ Estrutura do Projeto
 
 ```
 lib/
-├── main.dart                        # Entry point
-├── main_scaffold.dart               # Navegação principal (bottom nav + drawer)
-├── models/                          # Modelos Freezed (Feed, Article, Category)
-│   ├── feed.dart
-│   ├── article.dart
-│   └── category.dart
-├── providers/                       # Abstração multi-provider
-│   ├── feed_provider.dart           # Interface FeedProvider
-│   ├── provider_registry.dart       # Registro de providers
-│   ├── provider_init.dart
-│   └── theoldreader/
-│       └── theoldreader_provider.dart
+├── main.dart                          # Entry point + Login + MainScaffold
+├── models/
+│   ├── feed.dart                      # Freezed Feed model
+│   ├── article.dart                   # Freezed Article + ArticleListResult
+│   └── category.dart                  # Freezed Category + UnreadCount
+├── providers/
+│   ├── feed_provider.dart             # Abstract FeedProvider interface
+│   ├── provider_registry.dart         # Provider factory/registry
+│   ├── provider_init.dart             # Provider registration (all 8)
+│   ├── auth/
+│   │   └── auth_config.dart           # Freezed auth config classes
+│   ├── theoldreader/
+│   │   └── theoldreader_provider.dart
+│   ├── inoreader/
+│   │   └── inoreader_provider.dart
+│   ├── freshrss/
+│   │   └── freshrss_provider.dart
+│   ├── miniflux/
+│   │   └── miniflux_provider.dart
+│   ├── ttrss/
+│   │   └── ttrss_provider.dart
+│   ├── feedbin/
+│   │   └── feedbin_provider.dart
+│   ├── newsblur/
+│   │   └── newsblur_provider.dart
+│   └── local_opml/
+│       └── local_opml_provider.dart
 ├── services/
-│   ├── old_reader_api.dart          # HTTP client (~37 métodos)
-│   ├── auth_service.dart            # Autenticação e token
-│   └── provider_settings.dart      # Configurações do provider
+│   ├── provider_settings.dart         # Credential/settings storage
+│   └── old_reader_api.dart            # Legacy API (TheOldReaderProvider)
 ├── managers/
-│   └── favorites_manager.dart      # Estado de favoritos
+│   └── favorites_manager.dart         # Estado de favoritos (SharedPreferences)
 └── pages/
-    ├── login_screen.dart            # Login
-    ├── home_page.dart               # Lista de feeds
-    ├── feed_articles_page.dart      # Artigos de um feed (JSON)
-    ├── feed_articles_page_xml.dart  # Artigos (fallback XML)
-    ├── article_page.dart            # Leitura de artigo
-    ├── favorites_page.dart          # Itens favoritados
-    ├── folders_page.dart            # Pastas/categorias
-    ├── folder_feeds_page.dart       # Feeds de uma pasta
-    ├── add_feed_page.dart           # Adicionar assinatura
-    ├── subscriptions_page.dart      # Gerenciar assinaturas
-    ├── search_page.dart             # Busca de artigos
-    └── settings_page.dart          # Configurações
+    ├── login_screen.dart              # Login multi-provider
+    ├── home_page.dart                 # Lista de feeds
+    ├── feed_articles_page.dart        # Artigos de um feed
+    ├── feed_articles_page_xml.dart    # Artigos (fallback XML)
+    ├── article_page.dart              # Leitura de artigo
+    ├── favorites_page.dart            # Itens favoritados
+    ├── folders_page.dart              # Pastas/categorias
+    ├── folder_feeds_page.dart         # Feeds de uma pasta
+    ├── add_feed_page.dart             # Adicionar assinatura
+    ├── subscriptions_page.dart        # Gerenciar assinaturas
+    ├── search_page.dart               # Busca de artigos
+    └── settings_page.dart             # Configurações
 
 proxy/
-├── proxy.js                         # Servidor Express principal
-├── proxy-debug.js                   # Versão com logs detalhados
-├── proxy-test.js                    # Testes do proxy
-├── health-check.js                  # Health-check da API
-├── check-port.js                    # Verificação de porta
-├── config.json                      # Configurações
-└── test-quickadd.js                 # Teste de adição de feeds
+├── proxy.js                           # Servidor Express principal
+├── proxy-debug.js                     # Versão com logs detalhados
+├── proxy-test.js                      # Testes do proxy
+├── health-check.js                    # Health-check da API
+├── check-port.js                      # Verificação de porta
+├── config.json                        # Configurações
+└── test-quickadd.js                   # Teste de adição de feeds
 
 tests/
-└── login.spec.ts                    # Teste E2E Playwright
+└── login.spec.ts                      # Teste E2E Playwright
 ```
+
+---
 
 ## 🛠️ Stack
 
@@ -166,6 +206,21 @@ tests/
 | **Persistência** | `shared_preferences` |
 | **Proxy** | Node.js + Express |
 | **Testes E2E** | Playwright |
+
+---
+
+## 🔧 Build
+
+```bash
+# Android APK (split-per-abi)
+$env:JAVA_HOME = "$env:USERPROFILE\Android\jdk17-extracted\jdk17"
+flutter build apk --debug --split-per-abi
+
+# Web
+flutter build web
+```
+
+---
 
 ## 📄 Licença
 

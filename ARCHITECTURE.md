@@ -2,42 +2,58 @@
 
 ## Overview
 
-This document describes the multi-provider RSS architecture for the Old Reader Flutter app, enabling support for multiple RSS providers through a common interface.
+Multi-provider RSS architecture for the Old Reader Flutter app, supporting 8 RSS providers through a common `FeedProvider` interface.
 
 ## Providers Supported
 
-- **The Old Reader** (current) - GoogleLogin auth ✅ IMPLEMENTED
-- **Feedly** - OAuth2
-- **Inoreader** - Google Reader API compatible, OAuth2/API key
-- **FreshRSS** - Self-hosted, Google Reader API compatible, API key/Basic Auth
-- **Miniflux** - Self-hosted, REST API, API key
-- **Tiny Tiny RSS** - Self-hosted, TT-RSS API, Session-based
-- **Feedbin** - REST API, Basic Auth/API token
-- **NewsBlur** - Custom API, Session/Cookie
-- **Local OPML** - File-based, no auth
+| Provider | Auth Type | Self-hosted | Base URL | Status |
+|----------|-----------|-------------|----------|--------|
+| **The Old Reader** | GoogleLogin | No | Fixed | ✅ Implemented |
+| **Inoreader** | API Key | No | Fixed | ✅ Implemented |
+| **FreshRSS** | Basic Auth | Yes | Configurable | ✅ Implemented |
+| **Miniflux** | API Key | Yes | Configurable | ✅ Implemented |
+| **Tiny Tiny RSS** | Session/Basic | Yes | Configurable | ✅ Implemented |
+| **Feedbin** | Basic Auth | No | Fixed | ✅ Implemented |
+| **NewsBlur** | Basic Auth | Yes | Configurable | ✅ Implemented |
+| **Local OPML** | File | N/A | N/A | ✅ Implemented |
+| Feedly | OAuth2 | No | Fixed | 🔜 Planned |
 
 ---
 
 ## Implementation Status
 
 ### Phase 1: Foundation ✅
-- [x] Domain models (Feed, Article, Category, AuthConfig)
-- [x] FeedProvider abstract interface
-- [x] ProviderRegistry
-- [x] ProviderSettings (credential storage)
+- [x] Domain models (Feed, Article, Category, AuthConfig) with Freezed
+- [x] FeedProvider abstract interface (28+ methods)
+- [x] ProviderRegistry (factory pattern)
+- [x] ProviderSettings (credential storage via flutter_secure_storage)
 - [x] TheOldReaderProvider (wraps existing OldReaderApi)
+- [x] 59 unit tests
 
-### Phase 2: Migration
-- [ ] Update MainScaffold to use FeedProvider
-- [ ] Update all pages
-- [ ] Provider selection in Settings
-- [ ] Login flow refactor
+### Phase 2: Migration ✅
+- [x] All 12 page files migrated from OldReaderApi to FeedProvider
+- [x] main.dart: FeedProvider + initializeProviders() + ProviderSettings
+- [x] Login flow uses ProviderSettings for persistence
+- [x] 76/76 tests passing
 
-### Phase 3: Additional Providers
-- [ ] Inoreader, FreshRSS (Google Reader API compatible)
+### Phase 3: Additional Providers ✅
+- [x] InoreaderProvider (Google Reader API compatible, API key auth)
+- [x] FreshRssProvider (Google Reader API compatible, Basic Auth, self-hosted)
+- [x] MinifluxProvider (REST API, API key, self-hosted)
+- [x] TtrssProvider (Session-based auth, self-hosted)
+- [x] FeedbinProvider (REST API, Basic Auth)
+- [x] NewsBlurProvider (Custom API, Basic Auth, self-hosted)
+- [x] LocalOpmlProvider (File-based, no auth)
+- [x] Provider selection UI in LoginPage (dropdown + dynamic form)
+- [x] Base URL field for self-hosted providers
+- [x] Auth config persistence for all types
+- [x] 96/96 tests passing
+
+### Phase 4: Future
 - [ ] Feedly (OAuth2)
-- [ ] Miniflux, Feedbin, TT-RSS, NewsBlur
-- [ ] Local OPML
+- [ ] Provider selection in Settings page
+- [ ] Provider health/status indicators
+- [ ] Clean up legacy dead code files
 
 ---
 
@@ -191,9 +207,9 @@ enum AuthType { googleLogin, oauth2, apiKey, basicAuth, localFile }
 
 ### Provider-Specific Configs (Freezed classes)
 - `GoogleLoginAuthConfig` - The Old Reader (email/password → token)
-- `OAuth2AuthConfig` - Feedly, Inoreader (client_id, secret, tokens)
-- `ApiKeyAuthConfig` - FreshRSS, Miniflux, Feedbin
-- `BasicAuthConfig` - Feedbin, self-hosted
+- `OAuth2AuthConfig` - Feedly (client_id, secret, tokens) - planned
+- `ApiKeyAuthConfig` - Inoreader, Miniflux (api key + optional base URL)
+- `BasicAuthConfig` - FreshRSS, TT-RSS, Feedbin, NewsBlur (username/password + optional base URL)
 - `LocalOpmlAuthConfig` - Local OPML (file path)
 
 ### Result Classes
@@ -202,7 +218,7 @@ enum AuthType { googleLogin, oauth2, apiKey, basicAuth, localFile }
 class AuthResult with _$AuthResult {
   const factory AuthResult({
     required bool success,
-    GoogleLoginAuthConfig? config,
+    Object? config,  // Accepts any auth config type
     String? error,
     String? userId,
     String? userName,
@@ -248,6 +264,7 @@ class ProviderInfo {
   final String id;
   final String name;
   final bool supportsWebProxy;
+  final bool requiresBaseUrl;
   final List<AuthType> authTypes;
 }
 
@@ -261,18 +278,17 @@ class ProviderRegistry {
 ```
 
 ### Initialization (lib/providers/provider_init.dart)
+All 8 providers registered:
 ```dart
 void initializeProviders() {
-  ProviderRegistry.register(
-    'theoldreader',
-    () => TheOldReaderProvider(),
-    const ProviderInfo(
-      id: 'theoldreader',
-      name: 'The Old Reader',
-      supportsWebProxy: true,
-      authTypes: [AuthType.googleLogin],
-    ),
-  );
+  ProviderRegistry.register('theoldreader', ...);  // GoogleLogin
+  ProviderRegistry.register('inoreader', ...);      // API Key
+  ProviderRegistry.register('freshrss', ...);       // Basic Auth, self-hosted
+  ProviderRegistry.register('miniflux', ...);       // API Key, self-hosted
+  ProviderRegistry.register('ttrss', ...);          // Session-based, self-hosted
+  ProviderRegistry.register('feedbin', ...);        // Basic Auth
+  ProviderRegistry.register('newsblur', ...);       // Basic Auth, self-hosted
+  ProviderRegistry.register('local_opml', ...);     // File-based
 }
 ```
 
@@ -281,7 +297,7 @@ void initializeProviders() {
 ## Settings Storage (lib/services/provider_settings.dart)
 
 `ProviderSettings` using `flutter_secure_storage`:
-- Per-provider credentials (encrypted)
+- Per-provider credentials (encrypted at rest)
 - Active provider tracking
 - Provider-specific settings (custom base URLs)
 
@@ -300,21 +316,67 @@ class ProviderSettings {
 
 ---
 
-## TheOldReaderProvider (lib/providers/theoldreader/theoldreader_provider.dart)
+## Provider Implementations
 
-Wraps the existing `OldReaderApi` and implements the `FeedProvider` interface. This is the reference implementation showing how to adapt an existing API to the new architecture.
-
-Key features:
+### TheOldReaderProvider (lib/providers/theoldreader/)
+- Wraps existing `OldReaderApi` for backward compatibility
 - Converts between OldReaderApi responses and domain models
 - Handles XML/JSON response parsing
 - Maps Google Reader API states (read/starred) to boolean flags
+
+### InoreaderProvider (lib/providers/inoreader/)
+- Google Reader API compatible endpoints
+- API key authentication via `Authorization: GoogleLogin auth=<key>`
+- Base URL: `https://www.inoreader.com/reader/api/0`
+
+### FreshRssProvider (lib/providers/freshrss/)
+- Google Reader API compatible (same as The Old Reader/Inoreader)
+- Basic Auth with configurable base URL
+- Default path: `/api/greader.php`
+
+### MinifluxProvider (lib/providers/miniflux/)
+- Custom REST API (`/v1/` endpoints)
+- API key via `X-Auth-Token` header
+- Different data format (JSON objects, not Google Reader format)
+
+### TtrssProvider (lib/providers/ttrss/)
+- Session-based auth (login returns session_id)
+- POST-based API at `/api/`
+- Integer IDs for feeds/articles
+
+### FeedbinProvider (lib/providers/feedbin/)
+- REST API with Basic Auth
+- Fixed base URL: `https://api.feedbin.com/v2`
+- Taggings for categories
+
+### NewsBlurProvider (lib/providers/newsblur/)
+- Custom API with Basic Auth
+- Story hashes instead of integer IDs
+- Folder-based organization
+
+### LocalOpmlProvider (lib/providers/local_opml/)
+- File-based, no network
+- Parses OPML files for feed lists
+- Limited functionality (read-only feeds)
+
+---
+
+## Login UI
+
+The login screen dynamically adapts based on the selected provider:
+
+1. **Provider Dropdown**: Shows all 8 registered providers
+2. **API Key providers** (Inoreader, Miniflux): Shows API Key field
+3. **Basic Auth providers** (FreshRSS, TT-RSS, Feedbin, NewsBlur): Shows Email/Password fields
+4. **Self-hosted providers** (FreshRSS, Miniflux, TT-RSS, NewsBlur): Shows base URL field
+5. **The Old Reader**: Shows Email/Password fields
 
 ---
 
 ## Security Considerations
 
 1. **Credential Storage**: All auth tokens stored via `flutter_secure_storage` (encrypted at rest)
-2. **No Hardcoded Secrets**: Client IDs, secrets are entered by users
+2. **No Hardcoded Secrets**: Client IDs, secrets, API keys are entered by users
 3. **Token Validation**: Providers validate tokens before storing
 4. **Secure Transmission**: HTTPS for all API calls
 5. **Web Proxy**: CORS bypass via local proxy, no credentials sent to third parties
@@ -325,64 +387,76 @@ Key features:
 
 ```
 lib/
+├── main.dart                        # Entry point + Login + MainScaffold
 ├── models/
 │   ├── feed.dart                    # Freezed Feed model
-│   ├── feed.freezed.dart            # Generated
-│   ├── feed.g.dart                  # Generated
 │   ├── article.dart                 # Freezed Article + ArticleListResult
-│   ├── article.freezed.dart
-│   ├── article.g.dart
-│   ├── category.dart                # Freezed Category + UnreadCount
-│   ├── category.freezed.dart
-│   └── category.g.dart
+│   └── category.dart                # Freezed Category + UnreadCount
 ├── providers/
 │   ├── feed_provider.dart           # Abstract FeedProvider interface
 │   ├── provider_registry.dart       # Provider factory/registry
-│   ├── provider_init.dart           # Provider registration
+│   ├── provider_init.dart           # Provider registration (all 8)
 │   ├── auth/
-│   │   ├── auth_config.dart         # Freezed auth config classes
-│   │   ├── auth_config.freezed.dart
-│   │   └── auth_config.g.dart
+│   │   └── auth_config.dart         # Freezed auth config classes
 │   ├── theoldreader/
-│   │   └── theoldreader_provider.dart  # TheOldReader implementation
-│   ├── feedly/                      # Future
-│   ├── inoreader/                   # Future
-│   ├── freshrss/                    # Future
-│   ├── miniflux/                    # Future
-│   ├── ttrss/                       # Future
-│   ├── feedbin/                     # Future
-│   ├── newsblur/                    # Future
-│   └── local_opml/                  # Future
+│   │   └── theoldreader_provider.dart
+│   ├── inoreader/
+│   │   └── inoreader_provider.dart
+│   ├── freshrss/
+│   │   └── freshrss_provider.dart
+│   ├── miniflux/
+│   │   └── miniflux_provider.dart
+│   ├── ttrss/
+│   │   └── ttrss_provider.dart
+│   ├── feedbin/
+│   │   └── feedbin_provider.dart
+│   ├── newsblur/
+│   │   └── newsblur_provider.dart
+│   └── local_opml/
+│       └── local_opml_provider.dart
 ├── services/
 │   ├── provider_settings.dart       # Credential/settings storage
-│   ├── old_reader_api.dart          # Legacy (to be wrapped by TheOldReaderProvider)
-│   └── auth_service.dart            # Legacy (to be replaced by ProviderSettings)
-└── pages/                           # Updated to use FeedProvider
+│   └── old_reader_api.dart          # Legacy API (used by TheOldReaderProvider)
+└── pages/                           # All pages use FeedProvider
+    ├── login_screen.dart
+    ├── home_page.dart
+    ├── feed_articles_page.dart
+    ├── article_page.dart
+    ├── favorites_page.dart
+    ├── folders_page.dart
+    ├── folder_feeds_page.dart
+    ├── add_feed_page.dart
+    ├── subscriptions_page.dart
+    ├── search_page.dart
+    └── settings_page.dart
+
+test/
+├── models/                          # Model unit tests
+├── providers/                       # Provider unit tests
+│   └── inoreader/
+├── widget_test.dart
+├── favorites_manager_test.dart
+└── old_reader_api_test.dart
 ```
 
 ---
 
-## Migration Guide
-
-### For existing code using OldReaderApi directly:
-
-1. Import the provider registry
-2. Get the active provider: `ProviderRegistry.create(activeProviderId)`
-3. Use the provider interface methods instead of OldReaderApi methods
-
-### For adding a new provider:
+## Adding a New Provider
 
 1. Create directory `lib/providers/{provider_name}/`
 2. Create `{provider_name}_provider.dart` implementing `FeedProvider`
-3. Add auth config class in `lib/providers/auth/auth_config.dart` if needed
-4. Register in `lib/providers/provider_init.dart`
-5. Test all interface methods
+3. Implement all 28+ interface methods
+4. Add auth config class in `lib/providers/auth/auth_config.dart` if needed
+5. Register in `lib/providers/provider_init.dart` with `ProviderInfo`
+6. Set `requiresBaseUrl: true` for self-hosted providers
+7. Add unit tests in `test/providers/{provider_name}/`
+8. Run `flutter analyze` and `flutter test`
 
 ---
 
-## Next Steps
+## Tests
 
-1. **Phase 2**: Update MainScaffold and pages to use FeedProvider
-2. **Phase 3**: Implement Inoreader (closest to Google Reader API)
-3. **Phase 4**: Add provider selection UI in Settings
-4. **Phase 5**: Implement remaining providers
+- **96 unit tests** passing
+- Model tests: Feed, Article, Category, AuthConfig, ProviderRegistry
+- Provider tests: TheOldReader, Inoreader (properties, auth, interface compliance)
+- Widget tests: LoginScreen (dynamic form switching)
