@@ -31,22 +31,22 @@
             android:textSize="13sp"
             android:textStyle="bold"/>
 
-        <ImageButton
+        <ImageView
             android:id="@+id/btn_refresh"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_popup_sync"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="#FF8E8E93"
+            android:background="@android:color/transparent"
             android:contentDescription="Atualizar"/>
     </LinearLayout>
 
     <!-- Divider -->
-    <View
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#FF3A3A3C"
-        android:layout_marginBottom="6dp"/>
+        android:layout_marginBottom="6dp"
+        android:orientation="horizontal"/>
 
     <!-- Empty state -->
     <TextView
