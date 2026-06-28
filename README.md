@@ -1,8 +1,10 @@
 <div align="center">
 
-# 📰 The Old Reader
+# 📰 Multi RSS Reader
 
-**Multi-provider RSS reader client built with Flutter — supporting 8 RSS providers through a unified interface**
+**Cliente Flutter multi-provider para leitura de RSS — 8 providers com interface unificada**
+
+> Suporta: The Old Reader, Inoreader, FreshRSS, Miniflux, TT-RSS, Feedbin, NewsBlur e OPML local.
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.7+-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.7+-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
@@ -59,8 +61,8 @@ Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva
 ### Pré-requisitos
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) ^3.7.0
-- [Node.js](https://nodejs.org) ^18
-- Conta em um dos providers suportados
+- [Node.js](https://nodejs.org) ^18 (apenas para web/CORS)
+- Conta em um dos providers suportados (The Old Reader, Inoreader, FreshRSS, Miniflux, TT-RSS, Feedbin, NewsBlur ou OPML local)
 
 ### Instalação
 
