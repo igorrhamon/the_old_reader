@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import '../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
 
 class SettingsPage extends StatefulWidget {
-  final OldReaderApi api;
+  final FeedProvider provider;
   final VoidCallback onLogout;
 
-  const SettingsPage({super.key, required this.api, required this.onLogout});
+  const SettingsPage({super.key, required this.provider, required this.onLogout});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  List<String>? _categories;
+  List<String>? _categoryNames;
   bool _loadingCategories = true;
   bool _exportingOpml = false;
 
@@ -25,21 +25,26 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadCategories() async {
     setState(() => _loadingCategories = true);
     try {
-      final cats = await widget.api.getCategories();
-      if (mounted) setState(() { _categories = cats; _loadingCategories = false; });
+      final cats = await widget.provider.getCategories();
+      if (mounted) {
+        setState(() {
+          _categoryNames = cats.map((c) => c.name).toList();
+          _loadingCategories = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() { _categories = []; _loadingCategories = false; });
+      if (mounted) setState(() { _categoryNames = []; _loadingCategories = false; });
     }
   }
 
   Future<void> _exportOpml() async {
     setState(() => _exportingOpml = true);
     try {
-      final resp = await widget.api.exportOpml();
+      final content = await widget.provider.exportOpml();
       if (!mounted) return;
-      final msg = resp.statusCode == 200
-          ? 'OPML exportado com sucesso (${resp.bodyBytes.length} bytes)'
-          : 'Erro ao exportar OPML: ${resp.statusCode}';
+      final msg = content.isNotEmpty
+          ? 'OPML exportado com sucesso (${content.length} bytes)'
+          : 'Erro ao exportar OPML';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
       if (mounted) {
@@ -54,8 +59,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _removeCategory(String name) async {
     try {
-      await widget.api.removeTag('user/-/label/$name');
-      setState(() => _categories?.remove(name));
+      final cats = await widget.provider.getCategories();
+      final cat = cats.where((c) => c.name == name).firstOrNull;
+      if (cat != null) {
+        await widget.provider.deleteCategory(cat.id);
+      }
+      setState(() => _categoryNames?.remove(name));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Categoria "$name" removida.')),
@@ -112,13 +121,13 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: EdgeInsets.all(16),
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (_categories == null || _categories!.isEmpty)
+        else if (_categoryNames == null || _categoryNames!.isEmpty)
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text('Nenhuma categoria encontrada.', style: TextStyle(color: Colors.grey)),
           )
         else
-          ...(_categories!.map((name) => Dismissible(
+          ...(_categoryNames!.map((name) => Dismissible(
             key: Key(name),
             direction: DismissDirection.endToStart,
             background: Container(

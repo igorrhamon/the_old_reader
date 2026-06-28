@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import './../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
 
-/// This screen allows the user to add a new RSS feed by providing its URL.
-/// The feed URL is validated before sending a request to The Old Reader API.
 class AddFeedPage extends StatefulWidget {
-  final OldReaderApi api;
-  
+  final FeedProvider provider;
+
   const AddFeedPage({
     super.key,
-    required this.api,
+    required this.provider,
   });
 
   @override
@@ -19,44 +17,40 @@ class _AddFeedPageState extends State<AddFeedPage> {
   List<String> _categorias = ['Categoria'];
   String? _categoriaSelecionada;
   bool _categoriasLoading = false;
+
   @override
   void initState() {
     super.initState();
     _fetchCategorias();
-  }  Future<void> _fetchCategorias() async {
+  }
+
+  Future<void> _fetchCategorias() async {
     setState(() {
       _categoriasLoading = true;
     });
     try {
-      // Usar o novo método getCategories que já retorna a lista de nomes de categorias
-      final List<String> categoriesNames = await widget.api.getCategories();
-      
-      setState(() { 
-        _categorias = ['Categoria', ...categoriesNames];
+      final categories = await widget.provider.getCategories();
+      setState(() {
+        _categorias = ['Categoria', ...categories.map((c) => c.name)];
         _categoriasLoading = false;
       });
-      
-      // Para debugging
-      print('Categorias carregadas: $_categorias');
     } catch (e) {
-      print('Erro ao carregar categorias: $e');
-      // Ignora erro, mantém categorias default
       setState(() { _categoriasLoading = false; });
     }
   }
+
   final TextEditingController _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  /// Validates if the given URL is valid.
+
   bool isValidURL(String url) {
     final Uri? uri = Uri.tryParse(url);
     return uri != null && uri.isAbsolute;
   }
-  
+
   Future<void> _submitFeed() async {
     final String feedUrl = _urlController.text.trim();
 
-    // Check if the feed URL is valid.
     if (!isValidURL(feedUrl)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('URL inválida. Verifique e tente novamente.')),
@@ -64,7 +58,6 @@ class _AddFeedPageState extends State<AddFeedPage> {
       return;
     }
 
-    // Check if a valid category is selected
     final String? selectedCategory = _categoriaSelecionada;
     if (selectedCategory == null || selectedCategory == 'Categoria') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,14 +71,9 @@ class _AddFeedPageState extends State<AddFeedPage> {
     });
 
     try {
-      // Usar o novo método addFeedWithCategory que cria o feed e adiciona à categoria em uma única operação
-      final result = await widget.api.addFeedWithCategory(
-        feedUrl: feedUrl,
-        categoryName: selectedCategory,
-      );
-      
-      if (result['success'] == true) {
-        // Feed adicionado com sucesso
+      final result = await widget.provider.addFeed(feedUrl, category: selectedCategory);
+
+      if (result.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Feed adicionado com sucesso!'),
@@ -93,14 +81,12 @@ class _AddFeedPageState extends State<AddFeedPage> {
           ),
         );
         _urlController.clear();
-        
-        // Return to previous screen
+
         if (Navigator.canPop(context)) {
-          Navigator.pop(context, true); // Return true to indicate success
+          Navigator.pop(context, true);
         }
       } else {
-        // Erro ao adicionar feed
-        final String errorMessage = result['error'] ?? 'Erro desconhecido ao adicionar feed';
+        final String errorMessage = result.error ?? 'Erro desconhecido ao adicionar feed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -121,6 +107,7 @@ class _AddFeedPageState extends State<AddFeedPage> {
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -164,8 +151,6 @@ class _AddFeedPageState extends State<AddFeedPage> {
                 },
               ),
               const SizedBox(height: 16.0),
-
-              // Dropdown de Categoria estilizado
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 0),
@@ -211,7 +196,6 @@ class _AddFeedPageState extends State<AddFeedPage> {
                       ),
               ),
               const SizedBox(height: 16.0),
-
               SizedBox(
                 width: double.infinity,
                 height: 48,

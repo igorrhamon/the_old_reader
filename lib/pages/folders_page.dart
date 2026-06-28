@@ -1,23 +1,23 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
+import '../models/feed.dart';
+import '../models/category.dart';
 import 'feed_articles_page.dart';
 import 'folder_feeds_page.dart';
 
 class FoldersPage extends StatefulWidget {
-  final OldReaderApi api;
-  const FoldersPage({super.key, required this.api});
+  final FeedProvider provider;
+  const FoldersPage({super.key, required this.provider});
 
   @override
   State<FoldersPage> createState() => _FoldersPageState();
 }
 
 class _FoldersPageState extends State<FoldersPage> {
-  List<String> _categories = [];
+  List<Category> _categories = [];
   Map<String, int> _folderUnreadCounts = {};
-  Map<String, List<dynamic>> _feedsByFolder = {};
-  List<dynamic> _uncategorizedFeeds = [];
+  Map<String, List<Feed>> _feedsByFolder = {};
+  List<Feed> _uncategorizedFeeds = [];
   bool _loading = true;
 
   @override
@@ -30,57 +30,32 @@ class _FoldersPageState extends State<FoldersPage> {
     setState(() => _loading = true);
     try {
       final results = await Future.wait([
-        widget.api.getCategories(),
-        widget.api.getUnreadCounts(),
-        widget.api.getSubscriptions(),
+        widget.provider.getCategories(),
+        widget.provider.getUnreadCounts(),
+        widget.provider.getFeeds(),
       ]);
       if (!mounted) return;
-      final categories = results[0] as List<String>;
-      final unreadResp = results[1] as http.Response;
-      final subsResp = results[2] as http.Response;
-      final unreadCounts = <String, int>{};
-      if (unreadResp.statusCode == 200) {
-        try {
-          final unreadJson = jsonDecode(unreadResp.body);
-          final List<dynamic>? counts = unreadJson['unreadcounts'] as List?;
-          if (counts != null) {
-            for (final item in counts) {
-              if (item['id'] != null && item['count'] != null) {
-                unreadCounts[item['id'] as String] = (item['count'] as num).toInt();
-              }
-            }
+      final categories = results[0] as List<Category>;
+      final unreadCounts = results[1] as Map<String, int>;
+      final feeds = results[2] as List<Feed>;
+
+      final feedsByFolder = <String, List<Feed>>{};
+      final uncategorized = <Feed>[];
+      for (final feed in feeds) {
+        if (feed.categories.isNotEmpty) {
+          for (final catName in feed.categories) {
+            feedsByFolder.putIfAbsent(catName, () => []).add(feed);
           }
-        } catch (_) {}
+        } else {
+          uncategorized.add(feed);
+        }
       }
-      final feedsByFolder = <String, List<dynamic>>{};
-      final uncategorized = <dynamic>[];
-      if (subsResp.statusCode == 200) {
-        try {
-          final data = jsonDecode(subsResp.body);
-          final subs = data['subscriptions'] as List? ?? [];
-          for (final sub in subs) {
-            bool hasFolder = false;
-            if (sub['categories'] is List) {
-              for (final cat in sub['categories']) {
-                if (cat is Map && cat['label'] is String) {
-                  final label = cat['label'] as String;
-                  if (label.startsWith('user/-/label/')) {
-                    final folderName = label.replaceFirst('user/-/label/', '');
-                    feedsByFolder.putIfAbsent(folderName, () => []).add(sub);
-                    hasFolder = true;
-                  }
-                }
-              }
-            }
-            if (!hasFolder) uncategorized.add(sub);
-          }
-        } catch (_) {}
-      }
+
       final folderUnreadCounts = <String, int>{};
       for (final cat in categories) {
-        final key = 'user/-/label/$cat';
-        folderUnreadCounts[cat] = unreadCounts[key] ?? 0;
+        folderUnreadCounts[cat.name] = unreadCounts[cat.id] ?? 0;
       }
+
       setState(() {
         _categories = categories;
         _folderUnreadCounts = folderUnreadCounts;
@@ -93,8 +68,8 @@ class _FoldersPageState extends State<FoldersPage> {
     }
   }
 
-  Future<void> _renameFolder(String oldName) async {
-    final controller = TextEditingController(text: oldName);
+  Future<void> _renameFolder(Category cat) async {
+    final controller = TextEditingController(text: cat.name);
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -115,12 +90,9 @@ class _FoldersPageState extends State<FoldersPage> {
         ],
       ),
     );
-    if (result != null && result.isNotEmpty && result != oldName) {
+    if (result != null && result.isNotEmpty && result != cat.name) {
       try {
-        await widget.api.renameTag(
-          from: 'user/-/label/$oldName',
-          to: 'user/-/label/$result',
-        );
+        await widget.provider.renameCategory(cat.id, result);
         _loadData();
       } catch (e) {
         if (mounted) {
@@ -132,12 +104,12 @@ class _FoldersPageState extends State<FoldersPage> {
     }
   }
 
-  Future<void> _removeFolder(String name) async {
+  Future<void> _removeFolder(Category cat) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover pasta'),
-        content: Text('Remover a pasta "$name"? Os feeds serão movidos para "Sem categoria".'),
+        content: Text('Remover a pasta "${cat.name}"? Os feeds serão movidos para "Sem categoria".'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           TextButton(
@@ -149,7 +121,7 @@ class _FoldersPageState extends State<FoldersPage> {
     );
     if (confirm == true) {
       try {
-        await widget.api.removeTag('user/-/label/$name');
+        await widget.provider.deleteCategory(cat.id);
         _loadData();
       } catch (e) {
         if (mounted) {
@@ -166,18 +138,18 @@ class _FoldersPageState extends State<FoldersPage> {
       context,
       MaterialPageRoute(
         builder: (_) => FolderFeedsPage(
-          api: widget.api,
+          provider: widget.provider,
           folderName: folderName,
         ),
       ),
     );
   }
 
-  void _openFeed(dynamic feed) {
+  void _openFeed(Feed feed) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => FeedArticlesPage(api: widget.api, feed: feed),
+        builder: (_) => FeedArticlesPage(provider: widget.provider, feed: feed),
       ),
     );
   }
@@ -194,13 +166,13 @@ class _FoldersPageState extends State<FoldersPage> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 80),
                 children: [
-                  ..._categories.map((name) => _FolderTile(
-                    name: name,
-                    unreadCount: _folderUnreadCounts[name] ?? 0,
-                    feeds: _feedsByFolder[name] ?? [],
-                    onTap: () => _openFolderFeed(name),
-                    onRename: () => _renameFolder(name),
-                    onRemove: () => _removeFolder(name),
+                  ..._categories.map((cat) => _FolderTile(
+                    category: cat,
+                    unreadCount: _folderUnreadCounts[cat.name] ?? 0,
+                    feeds: _feedsByFolder[cat.name] ?? [],
+                    onTap: () => _openFolderFeed(cat.name),
+                    onRename: () => _renameFolder(cat),
+                    onRemove: () => _removeFolder(cat),
                     onFeedTap: _openFeed,
                   )),
                   if (_uncategorizedFeeds.isNotEmpty) ...[
@@ -212,8 +184,10 @@ class _FoldersPageState extends State<FoldersPage> {
                         style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ),
-                    ..._uncategorizedFeeds.map((feed) => _FeedInFolderTile(
-                      feed: feed,
+                    ..._uncategorizedFeeds.map((feed) => ListTile(
+                      dense: true,
+                      leading: Icon(Icons.rss_feed_rounded, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      title: Text(feed.title, style: const TextStyle(fontSize: 13)),
                       onTap: () => _openFeed(feed),
                     )),
                   ],
@@ -225,16 +199,16 @@ class _FoldersPageState extends State<FoldersPage> {
 }
 
 class _FolderTile extends StatefulWidget {
-  final String name;
+  final Category category;
   final int unreadCount;
-  final List<dynamic> feeds;
+  final List<Feed> feeds;
   final VoidCallback onTap;
   final VoidCallback onRename;
   final VoidCallback onRemove;
-  final void Function(dynamic) onFeedTap;
+  final void Function(Feed) onFeedTap;
 
   const _FolderTile({
-    required this.name,
+    required this.category,
     required this.unreadCount,
     required this.feeds,
     required this.onTap,
@@ -268,7 +242,7 @@ class _FolderTileState extends State<_FolderTile> {
                 color: hasUnread ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
               ),
               title: Text(
-                widget.name,
+                widget.category.name,
                 style: TextStyle(
                   fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
                 ),
@@ -321,33 +295,15 @@ class _FolderTileState extends State<_FolderTile> {
           ),
         ),
         if (_expanded && widget.feeds.isNotEmpty)
-          ...widget.feeds.map((feed) => _FeedInFolderTile(
-            feed: feed,
+          ...widget.feeds.map((feed) => ListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.only(left: 48),
+            leading: Icon(Icons.rss_feed_rounded, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            title: Text(feed.title, style: const TextStyle(fontSize: 13)),
             onTap: () => widget.onFeedTap(feed),
           )),
         const Divider(height: 1, indent: 16, endIndent: 16),
       ],
-    );
-  }
-}
-
-class _FeedInFolderTile extends StatelessWidget {
-  final dynamic feed;
-  final VoidCallback onTap;
-
-  const _FeedInFolderTile({required this.feed, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final title = feed['title'] as String? ?? 'Sem título';
-    return Padding(
-      padding: const EdgeInsets.only(left: 48),
-      child: ListTile(
-        dense: true,
-        leading: Icon(Icons.rss_feed_rounded, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
-        title: Text(title, style: const TextStyle(fontSize: 13)),
-        onTap: onTap,
-      ),
     );
   }
 }

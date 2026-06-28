@@ -1,7 +1,7 @@
-import 'dart:convert';
-import 'package:xml/xml.dart';
 import 'package:flutter/material.dart';
-import '../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
+import '../models/feed.dart';
+import '../models/category.dart';
 import 'feed_articles_page.dart';
 import 'folder_feeds_page.dart';
 
@@ -11,49 +11,20 @@ const _textSecondary = Color(0xFF8E8E93);
 const _divider = Color(0xFF3A3A3C);
 const _surface = Color(0xFF1C1C1E);
 
-
-// Tenta JSON primeiro; se falhar, parseia como XML (formato Old Reader object/list/string)
-Map<String, dynamic> _parseApiResponse(String body) {
-  try {
-    final decoded = jsonDecode(body);
-    if (decoded is Map<String, dynamic>) return decoded;
-  } catch (_) {}
-  // fallback XML
-  final doc = XmlDocument.parse(body);
-  return _xmlObjectToMap(doc.rootElement);
-}
-
-Map<String, dynamic> _xmlObjectToMap(XmlElement element) {
-  final map = <String, dynamic>{};
-  for (final child in element.childElements) {
-    final name = child.getAttribute('name') ?? '';
-    if (child.name.local == 'string') {
-      map[name] = child.innerText;
-    } else if (child.name.local == 'number') {
-      map[name] = num.tryParse(child.innerText) ?? 0;
-    } else if (child.name.local == 'boolean') {
-      map[name] = child.innerText == 'true';
-    } else if (child.name.local == 'list') {
-      map[name] = child.childElements.map((e) => _xmlObjectToMap(e)).toList();
-    } else if (child.name.local == 'object') {
-      map[name] = _xmlObjectToMap(child);
-    }
-  }
-  return map;
-}
 class HomePage extends StatefulWidget {
-  final OldReaderApi api;
-  const HomePage({super.key, required this.api});
+  final FeedProvider provider;
+  const HomePage({super.key, required this.provider});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
+
 class _HomePageState extends State<HomePage> {
-  List<dynamic>? feeds;
+  List<Feed> feeds = [];
   Map<String, int> unreadCounts = {};
-  List<String> categories = [];
-  Map<String, List<dynamic>> feedsByFolder = {};
-  List<dynamic> uncategorizedFeeds = [];
+  List<Category> categories = [];
+  Map<String, List<Feed>> feedsByFolder = {};
+  List<Feed> uncategorizedFeeds = [];
   String? error;
   bool loading = true;
 
@@ -76,73 +47,29 @@ class _HomePageState extends State<HomePage> {
     });
     try {
       final results = await Future.wait([
-        widget.api.getSubscriptions(),
-        widget.api.getUnreadCounts(),
-        widget.api.getTags(),
+        widget.provider.getFeeds(),
+        widget.provider.getUnreadCounts(),
+        widget.provider.getCategories(),
       ]);
 
-      final subsResponse = results[0];
-      final unreadResponse = results[1];
-      final tagsResponse = results[2];
+      feeds = results[0] as List<Feed>;
+      unreadCounts = results[1] as Map<String, int>;
+      categories = results[2] as List<Category>;
 
-      if (subsResponse.statusCode == 200) {
-        final json = _parseApiResponse(subsResponse.body);
-        feeds = (json.containsKey('subscriptions'))
-            ? List<dynamic>.from(json['subscriptions'])
-            : [];
-      } else {
-        setState(() {
-          error = 'Erro ao carregar feeds';
-          loading = false;
-        });
-        return;
-      }
-
-      if (unreadResponse.statusCode == 200) {
-        try {
-          final unreadJson = _parseApiResponse(unreadResponse.body);
-          final counts = unreadJson['unreadcounts'] as List?;
-          if (counts != null) {
-            unreadCounts = {
-              for (final item in counts)
-                if (item['id'] != null && item['count'] != null)
-                  item['id'] as String: (item['count'] as num).toInt(),
-            };
+      final byFolder = <String, List<Feed>>{};
+      final uncategorized = <Feed>[];
+      for (final feed in feeds) {
+        if (feed.categories.isNotEmpty) {
+          for (final catName in feed.categories) {
+            byFolder.putIfAbsent(catName, () => []).add(feed);
           }
-        } catch (_) {}
-      }
-
-      final folderNames = <String>{};
-      final byFolder = <String, List<dynamic>>{};
-      final uncategorized = <dynamic>[];
-      if (subsResponse.statusCode == 200 && feeds != null) {
-        for (final sub in feeds!) {
-          bool inFolder = false;
-          if (sub['categories'] is List) {
-            for (final cat in sub['categories']) {
-              if (cat is Map && cat['label'] is String) {
-                final label = cat['label'] as String;
-                if (label.startsWith('user/-/label/')) {
-                  final name = label.replaceFirst('user/-/label/', '');
-                  byFolder.putIfAbsent(name, () => []).add(sub);
-                  folderNames.add(name);
-                  inFolder = true;
-                }
-              }
-            }
-          }
-          if (!inFolder) uncategorized.add(sub);
+        } else {
+          uncategorized.add(feed);
         }
       }
-      if (tagsResponse.statusCode == 200) {
-        categories = widget.api.extractCategoriesFromTagsResponse(tagsResponse);
-      }
-      for (final cat in categories) {
-        folderNames.add(cat);
-      }
+
       feedsByFolder = byFolder;
       uncategorizedFeeds = uncategorized;
-      categories = folderNames.toList()..sort();
 
       setState(() => loading = false);
     } catch (e) {
@@ -153,11 +80,23 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _openFeed(BuildContext context, dynamic feed) {
+  void _openFeed(BuildContext context, Feed feed) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => FeedArticlesPage(api: widget.api, feed: feed),
+        builder: (_) => FeedArticlesPage(provider: widget.provider, feed: feed),
+      ),
+    );
+  }
+
+  void _openSmartStream(BuildContext context, String id, String title) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FeedArticlesPage(
+          provider: widget.provider,
+          feed: Feed(id: id, title: title),
+        ),
       ),
     );
   }
@@ -167,7 +106,7 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(
         builder: (_) => FolderFeedsPage(
-          api: widget.api,
+          provider: widget.provider,
           folderName: folderName,
         ),
       ),
@@ -193,6 +132,7 @@ class _HomePageState extends State<HomePage> {
     if (title.isEmpty) return colors[0];
     return colors[title.codeUnitAt(0) % colors.length];
   }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -216,8 +156,8 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    final allFeeds = feeds ?? [];
     final totalUnread = unreadCounts['user/-/state/com.google/reading-list'] ?? 0;
+    final categoryNames = categories.map((c) => c.name).toList()..sort();
 
     return RefreshIndicator(
       color: _accent,
@@ -225,17 +165,14 @@ class _HomePageState extends State<HomePage> {
       onRefresh: _loadFeeds,
       child: ListView(
         children: [
-          // Smart streams section
           _sectionHeader('INÍCIO'),
           _smartStreamTile(
             context,
             icon: Icons.all_inbox_rounded,
             title: 'Todos os artigos',
             subtitle: totalUnread > 0 ? '$totalUnread não lidos' : null,
-            feed: {
-              'id': 'user/-/state/com.google/reading-list',
-              'title': 'Todos os artigos',
-            },
+            streamId: 'user/-/state/com.google/reading-list',
+            streamTitle: 'Todos os artigos',
             hasUnread: totalUnread > 0,
           ),
           _smartStreamTile(
@@ -243,17 +180,14 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.circle_notifications_rounded,
             title: 'Não lidos',
             subtitle: totalUnread > 0 ? '$totalUnread artigos' : 'Nenhum',
-            feed: {
-              'id': 'user/-/state/com.google/reading-list',
-              'title': 'Não lidos',
-              'exclude': 'user/-/state/com.google/read',
-            },
+            streamId: 'user/-/state/com.google/reading-list',
+            streamTitle: 'Não lidos',
             hasUnread: totalUnread > 0,
           ),
           const Divider(color: _divider, height: 1),
-          if (categories.isNotEmpty) ...[
+          if (categoryNames.isNotEmpty) ...[
             _sectionHeader('PASTAS'),
-            ...categories.map((name) {
+            ...categoryNames.map((name) {
               final folderFeeds = feedsByFolder[name] ?? [];
               final folderUnread = unreadCounts['user/-/label/$name'] ?? 0;
               return _FolderSection(
@@ -271,13 +205,11 @@ class _HomePageState extends State<HomePage> {
           if (uncategorizedFeeds.isNotEmpty) ...[
             _sectionHeader('SEM CATEGORIA'),
             ...uncategorizedFeeds.map((feed) {
-              final feedId = feed['id'] as String? ?? '';
-              final count = unreadCounts[feedId] ?? 0;
-              final title = feed['title'] as String? ?? 'Sem título';
-              return _feedTile(context, feed: feed, title: title, count: count, isLast: false);
+              final count = unreadCounts[feed.id] ?? 0;
+              return _feedTile(context, feed: feed, title: feed.title, count: count, isLast: false);
             }),
           ],
-          if (allFeeds.isEmpty && categories.isEmpty)
+          if (feeds.isEmpty && categoryNames.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 32),
               child: Text(
@@ -311,11 +243,12 @@ class _HomePageState extends State<HomePage> {
     required IconData icon,
     required String title,
     String? subtitle,
-    required Map<String, dynamic> feed,
+    required String streamId,
+    required String streamTitle,
     required bool hasUnread,
   }) {
     return InkWell(
-      onTap: () => _openFeed(context, feed),
+      onTap: () => _openSmartStream(context, streamId, streamTitle),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
@@ -361,7 +294,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _feedTile(
     BuildContext context, {
-    required dynamic feed,
+    required Feed feed,
     required String title,
     required int count,
     required bool isLast,
@@ -440,10 +373,10 @@ class _HomePageState extends State<HomePage> {
 class _FolderSection extends StatefulWidget {
   final String name;
   final int unreadCount;
-  final List<dynamic> feeds;
+  final List<Feed> feeds;
   final Map<String, int> unreadCounts;
   final void Function() onFolderTap;
-  final void Function(dynamic) onFeedTap;
+  final void Function(Feed) onFeedTap;
 
   const _FolderSection({
     super.key,
@@ -538,9 +471,7 @@ class _FolderSectionState extends State<_FolderSection> {
         ),
         if (_expanded && widget.feeds.isNotEmpty)
           ...widget.feeds.map((feed) {
-            final feedId = feed['id'] as String? ?? '';
-            final count = widget.unreadCounts[feedId] ?? 0;
-            final title = feed['title'] as String? ?? 'Sem título';
+            final count = widget.unreadCounts[feed.id] ?? 0;
             final hasFeedUnread = count > 0;
             return InkWell(
               onTap: () => widget.onFeedTap(feed),
@@ -555,7 +486,7 @@ class _FolderSectionState extends State<_FolderSection> {
                   children: [
                     Expanded(
                       child: Text(
-                        title,
+                        feed.title,
                         style: TextStyle(
                           color: _textPrimary,
                           fontSize: 13,
@@ -589,7 +520,3 @@ class _FolderSectionState extends State<_FolderSection> {
     );
   }
 }
-
-
-
-

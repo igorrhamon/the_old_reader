@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
-import 'services/old_reader_api.dart';
-import 'services/auth_service.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'providers/feed_provider.dart';
+import 'providers/provider_init.dart';
+import 'providers/provider_registry.dart';
+
+import 'providers/auth/auth_config.dart';
+import 'services/provider_settings.dart';
 
 import 'pages/login_screen.dart';
 import 'pages/favorites_page.dart';
@@ -14,10 +16,7 @@ import 'pages/folders_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final proxyUrl = const String.fromEnvironment('PROXY_URL');
-  if (proxyUrl.isNotEmpty) {
-    OldReaderApi.setOverrideBaseUrl(proxyUrl);
-  }
+  initializeProviders();
   runApp(const MyApp());
 }
 
@@ -105,7 +104,7 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
-  OldReaderApi? _api;
+  FeedProvider? _provider;
   bool _loadingAuth = true;
 
   @override
@@ -116,24 +115,27 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   Future<void> _restoreSession() async {
     try {
-      final token = await AuthService.loadToken();
-      if (token != null && token.isNotEmpty) {
-        final api = OldReaderApi(token);
-        try {
-          final info = await api.getUserInfo();
-          if (info.statusCode == 200) {
-            if (mounted) _onLogin(api);
+      final activeProviderId = await ProviderSettings.getActiveProvider();
+      final providerId = activeProviderId ?? 'theoldreader';
+
+      final storedAuth = await ProviderSettings.loadAuthConfig(providerId);
+      if (storedAuth != null && storedAuth is GoogleLoginAuthConfig) {
+        final provider = ProviderRegistry.create(providerId);
+        if (provider != null) {
+          final result = await provider.authenticate(storedAuth);
+          if (result.success && mounted) {
+            _onLogin(provider);
             return;
           }
-        } catch (_) {}
+        }
       }
     } catch (_) {}
     if (mounted) setState(() => _loadingAuth = false);
   }
 
-  void _onLogin(OldReaderApi api) {
+  void _onLogin(FeedProvider provider) {
     setState(() {
-      _api = api;
+      _provider = provider;
       _selectedIndex = 0;
       _loadingAuth = false;
     });
@@ -170,7 +172,8 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final isLogged = _api != null;
+    final isLogged = _provider != null;
+    final providerName = _provider?.displayName ?? 'The Old Reader';
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -185,7 +188,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               ),
             ),
             const SizedBox(width: 8),
-            const Text('The Old Reader'),
+            Text(providerName),
           ],
         ),
         centerTitle: true,
@@ -196,7 +199,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               tooltip: 'Buscar',
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => SearchPage(api: _api!)),
+                MaterialPageRoute(builder: (_) => SearchPage(provider: _provider!)),
               ),
             ),
           if (isLogged)
@@ -204,8 +207,10 @@ class _MainScaffoldState extends State<MainScaffold> {
               icon: const Icon(Icons.logout_rounded),
               tooltip: 'Sair',
               onPressed: () async {
-                await AuthService.clearToken();
-                setState(() => _api = null);
+                final providerId = _provider!.providerId;
+                await _provider!.logout();
+                await ProviderSettings.clearAuthConfig(providerId);
+                setState(() => _provider = null);
               },
             ),
         ],
@@ -232,9 +237,9 @@ class _MainScaffoldState extends State<MainScaffold> {
                           child: const Icon(Icons.rss_feed, color: Colors.white, size: 20),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'The Old Reader',
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
+                        Text(
+                          providerName,
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
                         ),
                       ],
                     ),
@@ -249,7 +254,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                       Navigator.pop(context);
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => FoldersPage(api: _api!)),
+                        MaterialPageRoute(builder: (_) => FoldersPage(provider: _provider!)),
                       );
                       if (mounted) setState(() {});
                     },
@@ -275,13 +280,15 @@ class _MainScaffoldState extends State<MainScaffold> {
                     key: ValueKey(_selectedIndex),
                     index: _selectedIndex,
                     children: [
-                      HomePage(api: _api!),
-                      FavoritesPage(api: _api!),
+                      HomePage(provider: _provider!),
+                      FavoritesPage(provider: _provider!),
                       SettingsPage(
-                        api: _api!,
+                        provider: _provider!,
                         onLogout: () async {
-                          await AuthService.clearToken();
-                          setState(() => _api = null);
+                          final providerId = _provider!.providerId;
+                          await _provider!.logout();
+                          await ProviderSettings.clearAuthConfig(providerId);
+                          setState(() => _provider = null);
                         },
                       ),
                     ],
@@ -299,7 +306,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AddFeedPage(api: _api!),
+                            builder: (context) => AddFeedPage(provider: _provider!),
                           ),
                         );
                         if (result == true) setState(() {});
@@ -340,7 +347,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 }
 
 class LoginPage extends StatefulWidget {
-  final void Function(OldReaderApi api)? onLogin;
+  final void Function(FeedProvider provider)? onLogin;
   const LoginPage({super.key, this.onLogin});
 
   @override
@@ -369,46 +376,34 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      final url = Uri.parse('${OldReaderApi.authBaseUrl}/accounts/ClientLogin');
-      final body = 'client=theoldreader_flutter_app&accountType=HOSTED_OR_GOOGLE&service=reader&Email=${Uri.encodeComponent(email)}&Passwd=${Uri.encodeComponent(password)}&output=json';
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: body,
-      );
-      if (response.statusCode == 200) {
-        final data = response.body;
-        String? token;
-        // Tenta extrair o token do JSON ou do texto
-        try {
-          final json = data.startsWith('{') ? jsonDecode(data) : null;
-          if (json != null && json['Auth'] != null) {
-            token = json['Auth'];
-          }
-        } catch (_) {
-          // fallback para texto plano
-          final match = RegExp(r'Auth=(.+)').firstMatch(data);
-          if (match != null) token = match.group(1);
-        }
-        if (token != null && token.isNotEmpty) {
-          final api = OldReaderApi(token);
-          final userInfo = await api.getUserInfo();
-          if (userInfo.statusCode == 200) {
-            await AuthService.saveToken(token);
-            if (widget.onLogin != null) widget.onLogin!(api);
-            return;
-          }
-        }
+      final provider = ProviderRegistry.create('theoldreader');
+      if (provider == null) {
         setState(() {
-          _error = 'E-mail ou senha inválidos.';
+          _error = 'Provider não disponível.';
           _loading = false;
         });
-      } else {
-        setState(() {
-          _error = 'Erro ao autenticar: ${response.statusCode}';
-          _loading = false;
-        });
+        return;
       }
+
+      final config = GoogleLoginAuthConfig(
+        providerId: 'theoldreader',
+        email: email,
+        password: password,
+        authToken: '',
+      );
+
+      final result = await provider.authenticate(config);
+      if (result.success) {
+        await ProviderSettings.setActiveProvider('theoldreader');
+        await ProviderSettings.saveAuthConfig('theoldreader', config);
+        if (widget.onLogin != null) widget.onLogin!(provider);
+        return;
+      }
+
+      setState(() {
+        _error = result.error ?? 'E-mail ou senha inválidos.';
+        _loading = false;
+      });
     } catch (e) {
       setState(() {
         _error = 'Erro: $e';
@@ -418,14 +413,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _onForgotPassword() {
-    // TODO: Implementar ação de esqueci a senha
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Funcionalidade de recuperação de senha em breve.')),
     );
   }
 
   void _onSignUp() {
-    // TODO: Implementar ação de cadastro
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Funcionalidade de cadastro em breve.')),
     );

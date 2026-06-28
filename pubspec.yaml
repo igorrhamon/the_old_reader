@@ -32,6 +32,8 @@ dependencies:
     sdk: flutter
   http: ^1.2.1
   provider: ^6.1.2
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
 
   # Para parsing de XML
   xml: ^6.3.0
@@ -46,6 +48,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  freezed: ^2.5.7
+  build_runner: ^2.4.13
+  json_serializable: ^6.9.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

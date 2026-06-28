@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../providers/feed_provider.dart';
+import '../models/feed.dart';
+import '../models/article.dart';
 import 'article_page.dart';
-import '../services/old_reader_api.dart';
-import 'package:xml/xml.dart';
 
 const _accent = Color(0xFFFF6B2C);
 const _textPrimary = Color(0xFFF2F2F7);
@@ -10,9 +10,9 @@ const _textSecondary = Color(0xFF8E8E93);
 const _cardBg = Color(0xFF1C1C1E);
 
 class FeedArticlesPage extends StatefulWidget {
-  final OldReaderApi api;
-  final dynamic feed;
-  const FeedArticlesPage({super.key, required this.api, required this.feed});
+  final FeedProvider provider;
+  final Feed feed;
+  const FeedArticlesPage({super.key, required this.provider, required this.feed});
 
   @override
   State<FeedArticlesPage> createState() => _FeedArticlesPageState();
@@ -20,7 +20,7 @@ class FeedArticlesPage extends StatefulWidget {
 
 class _FeedArticlesPageState extends State<FeedArticlesPage>
     with TickerProviderStateMixin {
-  final List<Map<String, dynamic>> articles = [];
+  final List<Article> articles = [];
   final ScrollController _scrollController = ScrollController();
   String? _continuation;
   bool _loadingMore = false;
@@ -62,99 +62,22 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
     }
   }
 
-  /// Converte Atom XML do stream/contents em lista de artigos + token de continuação.
-  String _extractText(dynamic obj) {
-    if (obj == null) return '';
-    if (obj is String) return obj;
-    if (obj is Map) return (obj['content'] as String?) ?? '';
-    return '';
-  }
-
-  (List<Map<String, dynamic>>, String?) _parseAtom(String body) {
-    // Tenta JSON (output=json); fallback para Atom XML
-    try {
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final continuation = data['continuation'] as String?;
-      final rawItems = data['items'] as List<dynamic>? ?? [];
-      final items = rawItems.map((item) {
-        final m = item as Map<String, dynamic>;
-        final categories = (m['categories'] as List<dynamic>? ?? [])
-            .map((c) => c.toString())
-            .toList();
-        // alternates ou canonical para URL do artigo
-        final alternates = m['alternate'] as List<dynamic>?;
-        final canonicals = m['canonical'] as List<dynamic>?;
-        final urlList = (alternates?.isNotEmpty == true ? alternates : canonicals) ?? [];
-        final url = urlList.isNotEmpty
-            ? (urlList[0] as Map<dynamic, dynamic>)['href'] as String? ?? ''
-            : '';
-        return <String, dynamic>{
-          'id': m['id'] as String? ?? '',
-          'title': _extractText(m['title']),
-          'author': m['author'] as String? ?? '',
-          'summary': _extractText(m['summary']),
-          'content': _extractText(m['content']),
-          'published': m['published'],
-          'categories': categories,
-          'url': url,
-        };
-      }).toList();
-      return (items, continuation);
-    } catch (_) {}
-    // fallback Atom XML
-    final doc = XmlDocument.parse(body);
-    final continuation = doc.findAllElements('continuation').firstOrNull?.innerText;
-    final items = doc.findAllElements('entry').map((entry) {
-      final categories = entry
-          .findElements('category')
-          .map((c) => c.getAttribute('term') ?? '')
-          .where((t) => t.isNotEmpty)
-          .toList();
-      final link = entry
-          .findElements('link')
-          .where((l) => l.getAttribute('rel') == 'alternate')
-          .firstOrNull
-          ?.getAttribute('href') ?? '';
-      final published = entry.findElements('published').firstOrNull?.innerText;
-      return <String, dynamic>{
-        'id': entry.findElements('id').firstOrNull?.innerText ?? '',
-        'title': entry.findElements('title').firstOrNull?.innerText ?? '',
-        'author': entry.findElements('author').firstOrNull
-            ?.findElements('name').firstOrNull?.innerText ?? '',
-        'summary': entry.findElements('summary').firstOrNull?.innerText ?? '',
-        'content': entry.findElements('content').firstOrNull?.innerText ?? '',
-        'published': published,
-        'categories': categories,
-        'url': link,
-      };
-    }).toList();
-    return (items, continuation);
-  }
-
   Future<void> _loadArticles() async {
     setState(() {
       loading = true;
       error = null;
     });
     try {
-      final response = await widget.api.getStreamContents(
-        stream: widget.feed['id'],
-        n: 20,
+      final result = await widget.provider.getArticles(
+        streamId: widget.feed.id,
+        limit: 20,
       );
-      if (response.statusCode == 200) {
-        final (items, continuation) = _parseAtom(response.body);
-        setState(() {
-          articles..clear()..addAll(items);
-          _continuation = continuation;
-          loading = false;
-        });
-        _staggerCtrl.forward(from: 0);
-      } else {
-        setState(() {
-          error = 'Erro ao carregar artigos (${response.statusCode})';
-          loading = false;
-        });
-      }
+      setState(() {
+        articles..clear()..addAll(result.articles);
+        _continuation = result.continuation;
+        loading = false;
+      });
+      _staggerCtrl.forward(from: 0);
     } catch (e) {
       setState(() {
         error = 'Erro: $e';
@@ -167,18 +90,15 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
     if (_loadingMore || _continuation == null) return;
     setState(() => _loadingMore = true);
     try {
-      final response = await widget.api.getStreamContents(
-        stream: widget.feed['id'],
-        n: 20,
-        c: _continuation,
+      final result = await widget.provider.getArticles(
+        streamId: widget.feed.id,
+        limit: 20,
+        continuation: _continuation,
       );
-      if (response.statusCode == 200) {
-        final (items, continuation) = _parseAtom(response.body);
-        setState(() {
-          articles.addAll(items);
-          _continuation = continuation;
-        });
-      }
+      setState(() {
+        articles.addAll(result.articles);
+        _continuation = result.continuation;
+      });
     } finally {
       setState(() => _loadingMore = false);
     }
@@ -186,37 +106,29 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
 
   Future<void> _loadFavorites() async {
     try {
-      final ids = await widget.api.getStarredItemIds();
-      setState(() => favoriteIds = ids.toSet());
+      final result = await widget.provider.getStarredArticles();
+      setState(() => favoriteIds = result.articles.map((a) => a.id).toSet());
     } catch (_) {}
-  }
-
-  bool _isRead(Map<String, dynamic> article) {
-    final categories = article['categories'];
-    if (categories is List) {
-      return categories.contains('user/-/state/com.google/read');
-    }
-    return false;
   }
 
   Future<void> _toggleFavorite(String articleId) async {
     final isFav = favoriteIds.contains(articleId);
     if (isFav) {
-      await widget.api.removeFavorite(articleId);
+      await widget.provider.unstarArticle(articleId);
       setState(() => favoriteIds.remove(articleId));
     } else {
-      await widget.api.addFavorite(articleId);
+      await widget.provider.starArticle(articleId);
       setState(() => favoriteIds.add(articleId));
     }
   }
 
   Future<void> _markAllAsRead() async {
-    await widget.api.markAllAsRead(stream: widget.feed['id']);
+    await widget.provider.markAllAsRead(widget.feed.id);
     setState(() {
       for (final article in articles) {
-        final cats = article['categories'];
-        if (cats is List && !cats.contains('user/-/state/com.google/read')) {
-          cats.add('user/-/state/com.google/read');
+        if (!article.isRead) {
+          final idx = articles.indexOf(article);
+          articles[idx] = article.copyWith(isRead: true);
         }
       }
     });
@@ -227,22 +139,14 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
     }
   }
 
-  void _openArticle(BuildContext context, Map<String, dynamic> article) {
-    final articleId = article['id'] as String?;
+  void _openArticle(BuildContext context, Article article) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ArticlePage(article: article, api: widget.api),
+        builder: (_) => ArticlePage(article: article, provider: widget.provider),
       ),
     ).then((_) {
-      if (articleId != null) {
-        setState(() {
-          final cats = article['categories'];
-          if (cats is List && !cats.contains('user/-/state/com.google/read')) {
-            cats.add('user/-/state/com.google/read');
-          }
-        });
-      }
+      setState(() {});
     });
   }
 
@@ -287,9 +191,8 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
             );
           }
           final article = articles[index];
-          final articleId = article['id'] as String? ?? index.toString();
-          final isFav = favoriteIds.contains(articleId);
-          final isRead = _isRead(article);
+          final isFav = favoriteIds.contains(article.id);
+          final isRead = article.isRead;
 
           final delay = (index * 0.05).clamp(0.0, 0.7);
 
@@ -340,11 +243,11 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Hero(
-                              tag: 'article_title_$articleId',
+                              tag: 'article_title_${article.id}',
                               child: Material(
                                 color: Colors.transparent,
                                 child: Text(
-                                  article['title'] as String? ?? 'Sem título',
+                                  article.title.isNotEmpty ? article.title : 'Sem título',
                                   style: TextStyle(
                                     color: isRead ? _textSecondary : _textPrimary,
                                     fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
@@ -355,10 +258,10 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
                                 ),
                               ),
                             ),
-                            if ((article['author'] as String?)?.isNotEmpty == true) ...[
+                            if (article.author?.isNotEmpty == true) ...[
                               const SizedBox(height: 4),
                               Text(
-                                article['author'] as String,
+                                article.author!,
                                 style: const TextStyle(color: _textSecondary, fontSize: 13),
                               ),
                             ],
@@ -367,7 +270,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
                       ),
                       _AnimatedFavoriteButton(
                         isFav: isFav,
-                        onPressed: () => _toggleFavorite(articleId),
+                        onPressed: () => _toggleFavorite(article.id),
                       ),
                     ],
                   ),
@@ -386,7 +289,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         foregroundColor: _textPrimary,
         elevation: 0,
         title: Text(
-          widget.feed['title'] as String? ?? 'Feed',
+          widget.feed.title,
           style: const TextStyle(color: _textPrimary, fontSize: 17, fontWeight: FontWeight.w600),
         ),
         actions: [

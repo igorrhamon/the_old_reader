@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import '../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
+import '../models/article.dart';
 import 'article_page.dart';
 
 class SearchPage extends StatefulWidget {
-  final OldReaderApi api;
-  const SearchPage({super.key, required this.api});
+  final FeedProvider provider;
+  const SearchPage({super.key, required this.provider});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -12,7 +13,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final _controller = TextEditingController();
-  List<dynamic> _results = [];
+  List<Article> _results = [];
   bool _loading = false;
   bool _searched = false;
 
@@ -23,15 +24,12 @@ class _SearchPageState extends State<SearchPage> {
       _loading = true;
       _searched = true;
     });
-    final items = await widget.api.searchItems(q);
+    final result = await widget.provider.search(q);
     setState(() {
-      _results = items;
+      _results = result.articles;
       _loading = false;
     });
   }
-
-  String _title(dynamic article) => article['title'] ?? 'Sem título';
-  String _author(dynamic article) => article['author'] ?? '';
 
   @override
   Widget build(BuildContext context) {
@@ -53,14 +51,14 @@ class _SearchPageState extends State<SearchPage> {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               title: Text(
-                _title(article),
+                article.title.isNotEmpty ? article.title : 'Sem título',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
-              subtitle: _author(article).isNotEmpty ? Text(_author(article)) : null,
+              subtitle: (article.author?.isNotEmpty == true) ? Text(article.author!) : null,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ArticlePage(article: article, api: widget.api),
+                  builder: (_) => ArticlePage(article: article, provider: widget.provider),
                 ),
               ),
             ),

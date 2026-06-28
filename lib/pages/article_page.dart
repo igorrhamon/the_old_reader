@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_html/flutter_html.dart';
-import '../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
+import '../models/article.dart';
 
 const _accent = Color(0xFFFF6B2C);
 const _textPrimary = Color(0xFFF2F2F7);
@@ -10,8 +10,8 @@ const _surface = Color(0xFF1C1C1E);
 
 class ArticlePage extends StatefulWidget {
   final dynamic article;
-  final OldReaderApi api;
-  const ArticlePage({super.key, required this.article, required this.api});
+  final FeedProvider provider;
+  const ArticlePage({super.key, required this.article, required this.provider});
 
   @override
   State<ArticlePage> createState() => _ArticlePageState();
@@ -21,32 +21,70 @@ class _ArticlePageState extends State<ArticlePage> {
   @override
   void initState() {
     super.initState();
-    final id = widget.article['id'] as String? ?? '';
-    if (id.isNotEmpty) widget.api.markAsRead(id);
+    final id = _getArticleId();
+    if (id.isNotEmpty) widget.provider.markAsRead(id);
   }
 
-  String _formatDate(dynamic published) {
-    if (published == null) return '';
-    try {
-      final ts = int.tryParse(published.toString());
-      if (ts != null) {
-        final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
-        const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-        return '${dt.day} ${months[dt.month - 1]}. ${dt.year}';
+  String _getArticleId() {
+    final a = widget.article;
+    if (a is Article) return a.id;
+    if (a is Map) return a['id'] as String? ?? '';
+    return '';
+  }
+
+  String _getTitle() {
+    final a = widget.article;
+    if (a is Article) return a.title;
+    if (a is Map) return a['title'] as String? ?? 'Artigo';
+    return 'Artigo';
+  }
+
+  String _getAuthor() {
+    final a = widget.article;
+    if (a is Article) return a.author ?? '';
+    if (a is Map) return a['author'] as String? ?? '';
+    return '';
+  }
+
+  DateTime? _getPublished() {
+    final a = widget.article;
+    if (a is Article) return a.published;
+    if (a is Map) {
+      final published = a['published'];
+      if (published is DateTime) return published;
+      if (published != null) {
+        final ts = int.tryParse(published.toString());
+        if (ts != null) return DateTime.fromMillisecondsSinceEpoch(ts * 1000);
       }
-    } catch (_) {}
-    return published.toString();
+    }
+    return null;
+  }
+
+  String _getContent() {
+    final a = widget.article;
+    if (a is Article) {
+      return (a.content?.isNotEmpty == true) ? a.content! : (a.summary ?? '');
+    }
+    if (a is Map) {
+      final content = a['content'] as String? ?? '';
+      final summary = a['summary'] as String? ?? '';
+      return content.isNotEmpty ? content : summary;
+    }
+    return '';
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
+    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    return '${date.day} ${months[date.month - 1]}. ${date.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final article = widget.article;
-    final title = article['title'] as String? ?? 'Artigo';
-    final author = article['author'] as String? ?? '';
-    final published = article['published'];
-    final summary = article['summary'] as String? ?? '';
-    final content = article['content'] as String? ?? '';
-    final htmlContent = content.isNotEmpty ? content : summary;
+    final title = _getTitle();
+    final author = _getAuthor();
+    final published = _getPublished();
+    final htmlContent = _getContent();
 
     return Scaffold(
       backgroundColor: _bg,
@@ -69,7 +107,6 @@ class _ArticlePageState extends State<ArticlePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-                  // Orange accent line — the article's "chapter mark"
                   Container(
                     width: 32,
                     height: 3,
@@ -80,7 +117,7 @@ class _ArticlePageState extends State<ArticlePage> {
                   ),
                   const SizedBox(height: 20),
                   Hero(
-                    tag: 'article_title_${article['id']}',
+                    tag: 'article_title_${_getArticleId()}',
                     child: Material(
                       color: Colors.transparent,
                       child: Text(
@@ -108,7 +145,7 @@ class _ArticlePageState extends State<ArticlePage> {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            author.isNotEmpty ? author[0].toUpperCase() : '?',
+                            author[0].toUpperCase(),
                             style: const TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -138,49 +175,9 @@ class _ArticlePageState extends State<ArticlePage> {
                   const Divider(color: Color(0xFF3A3A3C)),
                   const SizedBox(height: 20),
                   if (htmlContent.isNotEmpty)
-                    Html(
-                      data: htmlContent,
-                      style: {
-                        'body': Style(
-                          color: _textPrimary,
-                          fontSize: FontSize(16),
-                          lineHeight: const LineHeight(1.75),
-                          fontFamily: 'Roboto',
-                          padding: HtmlPaddings.zero,
-                          margin: Margins.zero,
-                        ),
-                        'p': Style(
-                          color: _textPrimary,
-                          fontSize: FontSize(16),
-                          lineHeight: const LineHeight(1.75),
-                          margin: Margins.only(bottom: 16),
-                        ),
-                        'h1': Style(color: _textPrimary, fontWeight: FontWeight.w700),
-                        'h2': Style(color: _textPrimary, fontWeight: FontWeight.w700),
-                        'h3': Style(color: _textPrimary, fontWeight: FontWeight.w700),
-                        'a': Style(color: _accent),
-                        'blockquote': Style(
-                          color: _textSecondary,
-                          border: const Border(
-                            left: BorderSide(color: _accent, width: 3),
-                          ),
-                          padding: HtmlPaddings.only(left: 16),
-                          fontStyle: FontStyle.italic,
-                        ),
-                        'code': Style(
-                          backgroundColor: _surface,
-                          color: const Color(0xFF10B981),
-                          fontFamily: 'monospace',
-                          fontSize: FontSize(13),
-                        ),
-                        'pre': Style(
-                          backgroundColor: _surface,
-                          color: const Color(0xFF10B981),
-                          fontFamily: 'monospace',
-                          fontSize: FontSize(13),
-                        ),
-                        'img': Style(width: Width(100, Unit.percent)),
-                      },
+                    Text(
+                      htmlContent,
+                      style: const TextStyle(color: _textPrimary, fontSize: 16, height: 1.6),
                     )
                   else
                     const Text(

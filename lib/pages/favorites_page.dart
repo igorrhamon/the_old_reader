@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '../services/old_reader_api.dart';
+import '../providers/feed_provider.dart';
+import '../models/article.dart';
 import 'article_page.dart';
 
 class FavoritesPage extends StatefulWidget {
-  final OldReaderApi api;
-  const FavoritesPage({super.key, required this.api});
+  final FeedProvider provider;
+  const FavoritesPage({super.key, required this.provider});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
-  List<dynamic> favoriteArticles = [];
+  List<Article> favoriteArticles = [];
   bool loading = true;
   String? error;
 
@@ -27,12 +28,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
       error = null;
     });
     try {
-      // 1. Busca IDs de itens favoritados via Old Reader
-      final starredIds = await widget.api.getStarredItemIds();
-      // 2. Busca conteúdo desses itens
-      final fetchedArticles = await widget.api.getItemsContentsApi(starredIds);
+      final result = await widget.provider.getStarredArticles();
       setState(() {
-        favoriteArticles = fetchedArticles;
+        favoriteArticles = result.articles;
         loading = false;
       });
     } catch (e) {
@@ -59,11 +57,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
       itemBuilder: (context, index) {
         final article = favoriteArticles[index];
         return ListTile(
-          title: Text(article['title'] ?? ''),
-          subtitle: Text(article['author'] ?? ''),
+          title: Text(article.title),
+          subtitle: Text(article.author ?? ''),
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => ArticlePage(article: article, api: widget.api)),
+            MaterialPageRoute(builder: (_) => ArticlePage(article: article, provider: widget.provider)),
           ),
         );
       },

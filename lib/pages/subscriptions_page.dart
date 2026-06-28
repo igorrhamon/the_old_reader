@@ -1,20 +1,20 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import '../services/old_reader_api.dart';
-import '../pages/add_feed_page.dart';
+import '../providers/feed_provider.dart';
+import '../models/feed.dart';
+import '../models/category.dart';
+import 'add_feed_page.dart';
 
 class SubscriptionsPage extends StatefulWidget {
-  final OldReaderApi api;
-  const SubscriptionsPage({super.key, required this.api});
+  final FeedProvider provider;
+  const SubscriptionsPage({super.key, required this.provider});
 
   @override
   State<SubscriptionsPage> createState() => _SubscriptionsPageState();
 }
 
-class _SubscriptionsPageState extends State<SubscriptionsPage> {  
-  List<dynamic> subscriptions = [];
-  List<String> categories = [];
+class _SubscriptionsPageState extends State<SubscriptionsPage> {
+  List<Feed> subscriptions = [];
+  List<Category> categories = [];
   bool loading = true;
   bool loadingCategories = true;
   String? error;
@@ -30,14 +30,12 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
   Future<void> _loadCategories() async {
     setState(() { loadingCategories = true; });
     try {
-      // Usar o novo método para buscar categorias
-      final categoryList = await widget.api.getCategories();
-      setState(() { 
+      final categoryList = await widget.provider.getCategories();
+      setState(() {
         categories = categoryList;
         loadingCategories = false;
       });
     } catch (e) {
-      print('Erro ao carregar categorias: $e');
       setState(() { loadingCategories = false; });
     }
   }
@@ -45,16 +43,11 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
   Future<void> _loadSubscriptions() async {
     setState(() { loading = true; error = null; });
     try {
-      final resp = await widget.api.getSubscriptions();
-      if (resp.statusCode == 200) {
-        final data = resp.body;
-        final json = data.isNotEmpty ? (data.contains('subscriptions') ? (data.startsWith('{') ? (data.endsWith('}') ? data : '$data}') : '{$data}') : data) : '{}';
-        final map = jsonDecode(json);
-        subscriptions = List.from(map['subscriptions'] ?? []);
-        setState(() { loading = false; });
-      } else {
-        setState(() { error = 'Erro ao carregar: ${resp.statusCode}'; loading = false; });
-      }
+      final feedList = await widget.provider.getFeeds();
+      setState(() {
+        subscriptions = feedList;
+        loading = false;
+      });
     } catch (e) {
       setState(() { error = 'Erro: $e'; loading = false; });
     }
@@ -65,24 +58,24 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
     if (url.isEmpty) return;
     setState(() { loading = true; });
     try {
-      final resp = await widget.api.addSubscription(url);
-      if (resp.statusCode == 200) {
+      final result = await widget.provider.addFeed(url);
+      if (result.success) {
         _addController.clear();
         await _loadSubscriptions();
       } else {
-        setState(() { error = 'Erro ao adicionar: ${resp.statusCode}'; });
+        setState(() { error = result.error ?? 'Erro ao adicionar'; });
       }
     } catch (e) {
       setState(() { error = 'Erro: $e'; });
     }
   }
 
-  Future<void> _editSubscription(dynamic sub) async {
-    final controller = TextEditingController(text: sub['title'] ?? '');
+  Future<void> _editSubscription(Feed sub) async {
+    final controller = TextEditingController(text: sub.title);
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Editar título'),
+        title: const Text('Editar titulo'),
         content: TextField(controller: controller),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
@@ -92,17 +85,17 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
     );
     if (result != null && result.trim().isNotEmpty) {
       setState(() { loading = true; });
-      await widget.api.editSubscription(streamId: sub['id'], title: result.trim());
+      await widget.provider.renameFeed(sub.id, result.trim());
       await _loadSubscriptions();
     }
   }
 
-  Future<void> _removeSubscription(dynamic sub) async {
+  Future<void> _removeSubscription(Feed sub) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover assinatura'),
-        content: Text('Remover o feed "${sub['title']}"?'),
+        content: Text('Remover o feed "${sub.title}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remover')),
@@ -111,56 +104,36 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
     );
     if (confirm == true) {
       setState(() { loading = true; });
-      await widget.api.removeSubscription(sub['id']);
+      await widget.provider.removeFeed(sub.id);
       await _loadSubscriptions();
     }
   }
 
-  Future<void> _assignCategory(dynamic sub) async {
+  Future<void> _assignCategory(Feed sub) async {
     if (categories.isEmpty) {
-      // Se não tiver categorias, mostrar mensagem e retornar
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nenhuma categoria disponível')),
+        const SnackBar(content: Text('Nenhuma categoria disponivel')),
       );
       return;
     }
 
-    // Obter categorias atuais da assinatura
-    List<String> currentCategories = [];
-    
-    if (sub.containsKey('categories') && sub['categories'] is List) {
-      for (var cat in sub['categories']) {
-        if (cat is Map && cat.containsKey('label')) {
-          String categoryName = cat['label'];
-          if (categoryName.startsWith('user/-/label/')) {
-            categoryName = categoryName.replaceFirst('user/-/label/', '');
-          }
-          currentCategories.add(categoryName);
-        }
-      }
-    }
+    String? selectedCategory = sub.categories.isNotEmpty ? sub.categories.first : categories.first.name;
 
-    // Valor inicial para dropdown (primeira categoria atual ou primeira da lista)
-    String? initialCategory = currentCategories.isNotEmpty 
-        ? currentCategories.first 
-        : (categories.isNotEmpty ? categories.first : null);
-
-    // Mostrar diálogo com dropdown de categorias
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Atribuir à categoria'),
+        title: const Text('Atribuir a categoria'),
         content: DropdownButtonFormField<String>(
-          value: initialCategory,
+          value: selectedCategory,
           decoration: const InputDecoration(
             labelText: 'Categoria',
             border: OutlineInputBorder(),
           ),
           items: categories.map((cat) => DropdownMenuItem(
-            value: cat,
-            child: Text(cat),
+            value: cat.name,
+            child: Text(cat.name),
           )).toList(),
-          onChanged: (value) => initialCategory = value,
+          onChanged: (value) => selectedCategory = value,
         ),
         actions: [
           TextButton(
@@ -168,7 +141,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, initialCategory),
+            onPressed: () => Navigator.pop(ctx, selectedCategory),
             child: const Text('Salvar'),
           ),
         ],
@@ -177,24 +150,8 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
 
     if (result != null) {
       setState(() { loading = true; });
-      
       try {
-        // Remover categorias atuais e adicionar a nova
-        // Primeiro, remover todas as categorias atuais
-        for (var oldCat in currentCategories) {
-          await widget.api.editSubscription(
-            streamId: sub['id'],
-            removeLabel: 'user/-/label/$oldCat',
-          );
-        }
-        
-        // Depois, adicionar a nova categoria
-        await widget.api.editSubscription(
-          streamId: sub['id'],
-          addLabel: 'user/-/label/$result',
-        );
-        
-        // Recarregar assinaturas
+        await widget.provider.moveFeed(sub.id, result);
         await _loadSubscriptions();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -233,14 +190,9 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
 
     if (result != null && result.isNotEmpty) {
       setState(() { loading = true; });
-      
       try {
-        // Criar nova categoria (usando o método criado no OldReaderApi)
-        await widget.api.createCategory(result);
-        
-        // Recarregar categorias
+        await widget.provider.createCategory(result);
         await _loadCategories();
-        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Categoria "$result" criada com sucesso')),
         );
@@ -254,20 +206,6 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
     }
   }
 
-  // Extrair a categoria de uma assinatura para exibir no UI
-  String _getSubscriptionCategory(dynamic sub) {
-    if (sub.containsKey('categories') && sub['categories'] is List) {
-      for (var cat in sub['categories']) {
-        if (cat is Map && cat.containsKey('label')) {
-          String categoryPath = cat['label'];
-          if (categoryPath.startsWith('user/-/label/')) {
-            return categoryPath.replaceFirst('user/-/label/', '');
-          }
-        }
-      }
-    }
-    return 'Sem categoria';
-  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -321,26 +259,28 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                           itemCount: subscriptions.length,
                           itemBuilder: (context, idx) {
                             final sub = subscriptions[idx];
-                            final String categoryName = _getSubscriptionCategory(sub);
-                            
+                            final categoryName = sub.categories.isNotEmpty
+                                ? sub.categories.first
+                                : 'Sem categoria';
+
                             return Card(
                               margin: const EdgeInsets.symmetric(
-                                horizontal: 8.0, 
+                                horizontal: 8.0,
                                 vertical: 4.0,
                               ),
                               child: ListTile(
                                 title: Text(
-                                  sub['title'] ?? sub['id'] ?? '',
+                                  sub.title,
                                   style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(sub['url'] ?? ''),
+                                    Text(sub.url ?? ''),
                                     const SizedBox(height: 4),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, 
+                                        horizontal: 8,
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
@@ -367,7 +307,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.edit),
-                                      tooltip: 'Editar título',
+                                      tooltip: 'Editar titulo',
                                       onPressed: () => _editSubscription(sub),
                                     ),
                                     IconButton(
@@ -391,11 +331,10 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddFeedPage(api: widget.api),
+              builder: (context) => AddFeedPage(provider: widget.provider),
             ),
           ).then((result) {
             if (result == true) {
-              // Se um feed foi adicionado, atualizar a lista
               _loadSubscriptions();
             }
           });
