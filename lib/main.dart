@@ -136,6 +136,22 @@ class _MainScaffoldState extends State<MainScaffold> {
     if (mounted) setState(() => _loadingAuth = false);
   }
 
+  Future<void> _switchProvider(String providerId) async {
+    final storedAuth = await ProviderSettings.loadAuthConfig(providerId);
+    if (storedAuth != null) {
+      final provider = ProviderRegistry.create(providerId);
+      if (provider != null) {
+        final result = await provider.authenticate(storedAuth);
+        if (result.success) {
+          await ProviderSettings.setActiveProvider(providerId);
+          _onLogin(provider);
+          return;
+        }
+      }
+    }
+    setState(() => _provider = null);
+  }
+
   void _onLogin(FeedProvider provider) {
     setState(() {
       _provider = provider;
@@ -291,6 +307,8 @@ class _MainScaffoldState extends State<MainScaffold> {
                       FavoritesPage(provider: _provider!),
                       SettingsPage(
                         provider: _provider!,
+                        activeProviderId: _provider!.providerId,
+                        onSwitchProvider: _switchProvider,
                         onLogout: () async {
                           final providerId = _provider!.providerId;
                           await _provider!.logout();
