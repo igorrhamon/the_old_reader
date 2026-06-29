@@ -294,14 +294,22 @@ class _FolderTileState extends State<_FolderTile> {
             ),
           ),
         ),
-        if (_expanded && widget.feeds.isNotEmpty)
-          ...widget.feeds.map((feed) => ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.only(left: 48),
-            leading: Icon(Icons.rss_feed_rounded, size: 16, color: theme.colorScheme.onSurfaceVariant),
-            title: Text(feed.title, style: const TextStyle(fontSize: 13)),
-            onTap: () => widget.onFeedTap(feed),
-          )),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _expanded && widget.feeds.isNotEmpty
+                ? widget.feeds.map((feed) => ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.only(left: 48),
+                    leading: Icon(Icons.rss_feed_rounded, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    title: Text(feed.title, style: const TextStyle(fontSize: 13)),
+                    onTap: () => widget.onFeedTap(feed),
+                  )).toList()
+                : [],
+          ),
+        ),
         const Divider(height: 1, indent: 16, endIndent: 16),
       ],
     );

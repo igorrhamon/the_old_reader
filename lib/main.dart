@@ -312,11 +312,14 @@ class _MainScaffoldState extends State<MainScaffold> {
                     ],
                   ),
                 ),
-                if (_selectedIndex == 0)
-                  Positioned(
+                Positioned(
                     bottom: 24,
                     right: 24,
-                    child: FloatingActionButton(
+                    child: AnimatedScale(
+                      scale: _selectedIndex == 0 ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: FloatingActionButton(
                       backgroundColor: const Color(0xFFFF6B2C),
                       foregroundColor: Colors.white,
                       elevation: 4,
@@ -332,6 +335,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                       tooltip: 'Adicionar feed',
                       child: const Icon(Icons.add_rounded),
                     ),
+                  ),
                   ),
               ],
             )
@@ -572,31 +576,50 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-class _SplashScreen extends StatelessWidget {
+class _SplashScreen extends StatefulWidget {
   const _SplashScreen();
 
   @override
+  State<_SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Color(0xFF0F0F0F),
+    return ColoredBox(
+      color: const Color(0xFF0F0F0F),
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image(
-              image: AssetImage('assets/images/logo.png'),
-              width: 140,
-            ),
-            SizedBox(height: 40),
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: Color(0xFFFF6B2C),
-                strokeWidth: 2.5,
+        child: FadeTransition(
+          opacity: _anim,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image(image: AssetImage('assets/images/logo.png'), width: 140),
+              SizedBox(height: 40),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(color: Color(0xFFFF6B2C), strokeWidth: 2.5),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

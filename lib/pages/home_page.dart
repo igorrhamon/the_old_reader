@@ -147,11 +147,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    Widget body;
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: _accent));
-    }
-    if (error != null) {
-      return Center(
+      body = const Center(
+        key: ValueKey('loading'),
+        child: CircularProgressIndicator(color: _accent),
+      );
+    } else if (error != null) {
+      body = Center(
+        key: ValueKey('error'),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -166,12 +170,11 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       );
-    }
-
-    final totalUnread = unreadCounts['user/-/state/com.google/reading-list'] ?? 0;
-    final categoryNames = categories.map((c) => c.name).toList()..sort();
-
-    return RefreshIndicator(
+    } else {
+      final totalUnread = unreadCounts['user/-/state/com.google/reading-list'] ?? 0;
+      final categoryNames = categories.map((c) => c.name).toList()..sort();
+      body = RefreshIndicator(
+        key: const ValueKey('content'),
       color: _accent,
       backgroundColor: _surface,
       onRefresh: _loadFeeds,
@@ -232,6 +235,12 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 80),
         ],
       ),
+      );
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+      child: body,
     );
   }
 
@@ -481,52 +490,60 @@ class _FolderSectionState extends State<_FolderSection> {
             ),
           ),
         ),
-        if (_expanded && widget.feeds.isNotEmpty)
-          ...widget.feeds.map((feed) {
-            final count = widget.unreadCounts[feed.id] ?? 0;
-            final hasFeedUnread = count > 0;
-            return InkWell(
-              onTap: () => widget.onFeedTap(feed),
-              child: Container(
-                padding: const EdgeInsets.only(left: 66, right: 20, top: 10, bottom: 10),
-                decoration: BoxDecoration(
-                  border: hasFeedUnread
-                      ? const Border(left: BorderSide(color: _accent, width: 2))
-                      : null,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        feed.title,
-                        style: TextStyle(
-                          color: _textPrimary,
-                          fontSize: 13,
-                          fontWeight: hasFeedUnread ? FontWeight.w500 : FontWeight.w400,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (hasFeedUnread) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _expanded && widget.feeds.isNotEmpty
+                ? widget.feeds.map((feed) {
+                    final count = widget.unreadCounts[feed.id] ?? 0;
+                    final hasFeedUnread = count > 0;
+                    return InkWell(
+                      onTap: () => widget.onFeedTap(feed),
+                      child: Container(
+                        padding: const EdgeInsets.only(left: 66, right: 20, top: 10, bottom: 10),
                         decoration: BoxDecoration(
-                          color: _accent.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
+                          border: hasFeedUnread
+                              ? const Border(left: BorderSide(color: _accent, width: 2))
+                              : null,
                         ),
-                        child: Text(
-                          count > 999 ? '999+' : count.toString(),
-                          style: const TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w600),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                feed.title,
+                                style: TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: hasFeedUnread ? FontWeight.w500 : FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (hasFeedUnread) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: _accent.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  count > 999 ? '999+' : count.toString(),
+                                  style: const TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }),
+                    );
+                  }).toList()
+                : [],
+          ),
+        ),
         const Divider(color: _divider, height: 1, indent: 16, endIndent: 16),
       ],
     );
