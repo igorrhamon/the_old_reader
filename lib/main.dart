@@ -204,14 +204,7 @@ class _MainScaffoldState extends State<MainScaffold> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF6B2C),
-                shape: BoxShape.circle,
-              ),
-            ),
+            const Icon(Icons.rss_feed_rounded, color: Color(0xFFFF6B2C), size: 18),
             const SizedBox(width: 8),
             Text(providerName),
           ],
@@ -362,7 +355,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                 NavigationDestination(
                   icon: Icon(Icons.settings_outlined),
                   selectedIcon: Icon(Icons.settings_rounded, color: Color(0xFFFF6B2C)),
-                  label: 'Config.',
+                  label: 'Ajustes',
                 ),
               ],
             )

@@ -239,7 +239,7 @@ class _FolderTileState extends State<_FolderTile> {
             child: ListTile(
               leading: Icon(
                 _expanded ? Icons.folder_open_rounded : Icons.folder_rounded,
-                color: hasUnread ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                color: theme.colorScheme.primary,
               ),
               title: Text(
                 widget.category.name,
