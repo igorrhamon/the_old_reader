@@ -1,4 +1,4 @@
-package com.example.the_old_reader
+package io.feedflow.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

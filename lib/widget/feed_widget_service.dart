@@ -1,7 +1,7 @@
 import 'package:home_widget/home_widget.dart';
 import '../models/article.dart';
 
-const _appGroupId = 'com.example.the_old_reader';
+const _appGroupId = 'io.feedflow.app';
 const _androidWidgetName = 'FeedWidgetProvider';
 const _maxArticles = 5;
 
