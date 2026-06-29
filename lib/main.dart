@@ -389,6 +389,17 @@ class _LoginPageState extends State<LoginPage> {
   bool get _requiresBaseUrl =>
       _selectedProviderInfo?.requiresBaseUrl ?? false;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _apiKeyController.dispose();
+    _baseUrlController.dispose();
+    _clientIdController.dispose();
+    _clientSecretController.dispose();
+    super.dispose();
+  }
+
   void _authorizeOAuth2() async {
     final clientId = _clientIdController.text.trim();
     if (clientId.isEmpty) {
@@ -533,6 +544,10 @@ class _LoginPageState extends State<LoginPage> {
       availableProviders: _availableProviders,
       isApiKeyAuth: _isApiKeyAuth,
       requiresBaseUrl: _requiresBaseUrl,
+      isOAuth2: _isOAuth2,
+      clientIdController: _clientIdController,
+      clientSecretController: _clientSecretController,
+      onOAuth2Authorize: _isOAuth2 && !_loading ? _authorizeOAuth2 : null,
       onProviderChanged: (id) => setState(() {
         _selectedProviderId = id;
         _error = null;
