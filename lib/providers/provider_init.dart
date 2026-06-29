@@ -8,6 +8,7 @@ import 'ttrss/ttrss_provider.dart';
 import 'feedbin/feedbin_provider.dart';
 import 'newsblur/newsblur_provider.dart';
 import 'local_opml/local_opml_provider.dart';
+import 'package:the_old_reader/providers/feedly/feedly_provider.dart';
 
 void initializeProviders() {
   ProviderRegistry.register(
@@ -98,6 +99,18 @@ void initializeProviders() {
       id: 'local_opml',
       name: 'Local OPML',
       authTypes: [AuthType.localFile],
+    ),
+  );
+
+  ProviderRegistry.register(
+    'feedly',
+    () => FeedlyProvider(),
+    const ProviderInfo(
+      id: 'feedly',
+      name: 'Feedly',
+      supportsWebProxy: false,
+      requiresBaseUrl: false,
+      authTypes: [AuthType.oauth2],
     ),
   );
 }
