@@ -69,25 +69,18 @@ class _FoldersPageState extends State<FoldersPage> {
   }
 
   Future<void> _renameFolder(Category cat) async {
-    final controller = TextEditingController(text: cat.name);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Renomear pasta'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Nome',
-            border: OutlineInputBorder(),
-          ),
+    final result = await Navigator.push<String>(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (ctx, anim, _) => _RenameFolderPage(initialName: cat.name),
+        transitionsBuilder: (ctx, anim, _, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child,
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Renomear'),
-          ),
-        ],
+        transitionDuration: const Duration(milliseconds: 300),
       ),
     );
     if (result != null && result.isNotEmpty && result != cat.name) {
@@ -312,6 +305,75 @@ class _FolderTileState extends State<_FolderTile> {
         ),
         const Divider(height: 1, indent: 16, endIndent: 16),
       ],
+    );
+  }
+}
+
+class _RenameFolderPage extends StatefulWidget {
+  final String initialName;
+  const _RenameFolderPage({required this.initialName});
+
+  @override
+  State<_RenameFolderPage> createState() => _RenameFolderPageState();
+}
+
+class _RenameFolderPageState extends State<_RenameFolderPage> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _ctrl.text.trim();
+    if (name.isNotEmpty) Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Renomear pasta'),
+        actions: [
+          TextButton(
+            onPressed: _save,
+            child: Text(
+              'Salvar',
+              style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+        child: TextField(
+          controller: _ctrl,
+          autofocus: true,
+          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 16),
+          cursorColor: theme.colorScheme.primary,
+          decoration: InputDecoration(
+            labelText: 'Nome da pasta',
+            labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            filled: true,
+            fillColor: theme.colorScheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+            ),
+          ),
+          onSubmitted: (_) => _save(),
+        ),
+      ),
     );
   }
 }
