@@ -7,7 +7,7 @@ const _surface = Color(0xFF1C1C1E);
 const _textPrimary = Color(0xFFF2F2F7);
 const _textSecondary = Color(0xFF8E8E93);
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController apiKeyController;
@@ -50,11 +50,58 @@ class LoginScreen extends StatelessWidget {
   });
 
   @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final emailController = widget.emailController;
+    final passwordController = widget.passwordController;
+    final apiKeyController = widget.apiKeyController;
+    final baseUrlController = widget.baseUrlController;
+    final clientIdController = widget.clientIdController;
+    final clientSecretController = widget.clientSecretController;
+    final selectedProviderId = widget.selectedProviderId;
+    final availableProviders = widget.availableProviders;
+    final isApiKeyAuth = widget.isApiKeyAuth;
+    final requiresBaseUrl = widget.requiresBaseUrl;
+    final isOAuth2 = widget.isOAuth2;
+    final onProviderChanged = widget.onProviderChanged;
+    final onLogin = widget.onLogin;
+    final onOAuth2Authorize = widget.onOAuth2Authorize;
+    final loading = widget.loading;
+    final error = widget.error;
+    final onForgotPassword = widget.onForgotPassword;
+    final onSignUp = widget.onSignUp;
     return Scaffold(
       backgroundColor: _bg,
       body: Center(
-        child: SingleChildScrollView(
+        child: FadeTransition(
+          opacity: _fade,
+          child: SlideTransition(
+            position: _slide,
+            child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -196,7 +243,7 @@ class LoginScreen extends StatelessWidget {
                     border: Border.all(color: const Color(0x33FF453A)),
                   ),
                   child: Text(
-                    error!,
+                    error,
                     style: const TextStyle(color: Color(0xFFFF453A), fontSize: 13),
                   ),
                 ),
@@ -255,7 +302,9 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _label(String text) {
