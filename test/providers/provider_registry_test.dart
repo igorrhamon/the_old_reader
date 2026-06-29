@@ -15,8 +15,11 @@ void main() {
     });
 
     test('isRegistered retorna false para provider não registrado', () {
-      expect(ProviderRegistry.isRegistered('feedly'), false);
       expect(ProviderRegistry.isRegistered('nonexistent'), false);
+    });
+
+    test('isRegistered retorna true para feedly registrado', () {
+      expect(ProviderRegistry.isRegistered('feedly'), true);
     });
 
     test('create retorna instância do provider correto', () {
