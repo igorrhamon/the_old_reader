@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import '../providers/feed_provider.dart';
+import '../providers/provider_registry.dart';
+import '../services/provider_settings.dart';
 
 class SettingsPage extends StatefulWidget {
   final FeedProvider provider;
+  final String activeProviderId;
+  final Future<void> Function(String providerId) onSwitchProvider;
   final VoidCallback onLogout;
 
-  const SettingsPage({super.key, required this.provider, required this.onLogout});
+  const SettingsPage({
+    super.key,
+    required this.provider,
+    required this.activeProviderId,
+    required this.onSwitchProvider,
+    required this.onLogout,
+  });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -15,11 +25,35 @@ class _SettingsPageState extends State<SettingsPage> {
   List<String>? _categoryNames;
   bool _loadingCategories = true;
   bool _exportingOpml = false;
+  Map<String, bool> _connectedProviders = {};
+  bool _loadingProviders = true;
+  bool? _isHealthy;  // null = verificando, true = ok, false = erro
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    _loadConnectedProviders();
+    _checkHealth();
+  }
+
+  Future<void> _loadConnectedProviders() async {
+    final connected = await ProviderSettings.getConnectedProviders();
+    if (mounted) {
+      setState(() {
+        _connectedProviders = connected;
+        _loadingProviders = false;
+      });
+    }
+  }
+
+  Future<void> _checkHealth() async {
+    try {
+      final ok = await widget.provider.validateToken();
+      if (mounted) setState(() => _isHealthy = ok);
+    } catch (_) {
+      if (mounted) setState(() => _isHealthy = false);
+    }
   }
 
   Future<void> _loadCategories() async {
@@ -83,6 +117,29 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return ListView(
       children: [
+        ListTile(
+          leading: Icon(
+            _isHealthy == null
+                ? Icons.hourglass_empty
+                : _isHealthy!
+                    ? Icons.wifi
+                    : Icons.wifi_off,
+            color: _isHealthy == null
+                ? Colors.grey
+                : _isHealthy!
+                    ? Colors.green
+                    : Colors.red,
+          ),
+          title: Text(
+            _isHealthy == null
+                ? 'Verificando conexão...'
+                : _isHealthy!
+                    ? 'Conexão ativa'
+                    : 'Sem conexão',
+          ),
+          subtitle: Text(widget.provider.displayName),
+        ),
+        const Divider(),
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
           child: Text('Conta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
@@ -101,6 +158,38 @@ class _SettingsPageState extends State<SettingsPage> {
           title: const Text('Sair', style: TextStyle(color: Colors.red)),
           onTap: widget.onLogout,
         ),
+        const Divider(),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Text('Trocar Provedor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+        ),
+        if (_loadingProviders)
+          const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator())
+        else
+          ...ProviderRegistry.getAvailableProviders().map((info) {
+            final isActive = info.id == widget.activeProviderId;
+            final isConnected = _connectedProviders[info.id] ?? false;
+            return ListTile(
+              leading: Icon(
+                isConnected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: isConnected ? Colors.green : Colors.grey,
+                size: 20,
+              ),
+              title: Text(info.name),
+              trailing: isActive
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0x33FF6B2C),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text('Ativo', style: TextStyle(color: Color(0xFFFF6B2C), fontSize: 11, fontWeight: FontWeight.w600)),
+                    )
+                  : null,
+              tileColor: isActive ? const Color(0x0AFF6B2C) : null,
+              onTap: isActive ? null : () => widget.onSwitchProvider(info.id),
+            );
+          }),
         const Divider(),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),

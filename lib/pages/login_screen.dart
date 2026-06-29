@@ -16,6 +16,10 @@ class LoginScreen extends StatelessWidget {
   final List<ProviderInfo> availableProviders;
   final bool isApiKeyAuth;
   final bool requiresBaseUrl;
+  final bool isOAuth2;
+  final TextEditingController? clientIdController;
+  final TextEditingController? clientSecretController;
+  final VoidCallback? onOAuth2Authorize;
   final ValueChanged<String> onProviderChanged;
   final VoidCallback onLogin;
   final bool loading;
@@ -33,6 +37,10 @@ class LoginScreen extends StatelessWidget {
     required this.availableProviders,
     required this.isApiKeyAuth,
     this.requiresBaseUrl = false,
+    this.isOAuth2 = false,
+    this.clientIdController,
+    this.clientSecretController,
+    this.onOAuth2Authorize,
     required this.onProviderChanged,
     required this.onLogin,
     this.loading = false,
@@ -123,6 +131,22 @@ class LoginScreen extends StatelessWidget {
                   hint: 'Cole sua API key aqui',
                   enabled: !loading,
                 ),
+              ] else if (isOAuth2) ...[
+                _label('Client ID'),
+                const SizedBox(height: 8),
+                _field(
+                  controller: clientIdController!,
+                  hint: 'Seu Client ID do Feedly',
+                  enabled: !loading,
+                ),
+                const SizedBox(height: 16),
+                _label('Client Secret'),
+                const SizedBox(height: 8),
+                _field(
+                  controller: clientSecretController!,
+                  hint: 'Seu Client Secret (opcional)',
+                  enabled: !loading,
+                ),
               ] else ...[
                 if (requiresBaseUrl) ...[
                   _label('URL do Servidor'),
@@ -182,7 +206,7 @@ class LoginScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: loading ? null : onLogin,
+                  onPressed: isOAuth2 ? (loading ? null : onOAuth2Authorize) : (loading ? null : onLogin),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _accent,
                     foregroundColor: Colors.white,
@@ -199,9 +223,9 @@ class LoginScreen extends StatelessWidget {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          'Entrar',
-                          style: TextStyle(
+                      : Text(
+                          isOAuth2 ? 'Autorizar com Feedly' : 'Entrar',
+                          style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 15,
                             letterSpacing: 0.2,

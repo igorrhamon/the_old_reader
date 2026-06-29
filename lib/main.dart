@@ -6,6 +6,7 @@ import 'providers/provider_registry.dart';
 
 import 'providers/auth/auth_config.dart';
 import 'services/provider_settings.dart';
+import 'providers/feedly/feedly_auth.dart';
 
 import 'pages/login_screen.dart';
 import 'widget/feed_widget_service.dart';
@@ -133,6 +134,22 @@ class _MainScaffoldState extends State<MainScaffold> {
       }
     } catch (_) {}
     if (mounted) setState(() => _loadingAuth = false);
+  }
+
+  Future<void> _switchProvider(String providerId) async {
+    final storedAuth = await ProviderSettings.loadAuthConfig(providerId);
+    if (storedAuth != null) {
+      final provider = ProviderRegistry.create(providerId);
+      if (provider != null) {
+        final result = await provider.authenticate(storedAuth);
+        if (result.success) {
+          await ProviderSettings.setActiveProvider(providerId);
+          _onLogin(provider);
+          return;
+        }
+      }
+    }
+    setState(() => _provider = null);
   }
 
   void _onLogin(FeedProvider provider) {
@@ -290,6 +307,8 @@ class _MainScaffoldState extends State<MainScaffold> {
                       FavoritesPage(provider: _provider!),
                       SettingsPage(
                         provider: _provider!,
+                        activeProviderId: _provider!.providerId,
+                        onSwitchProvider: _switchProvider,
                         onLogout: () async {
                           final providerId = _provider!.providerId;
                           await _provider!.logout();
@@ -365,6 +384,8 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final _apiKeyController = TextEditingController();
   final _baseUrlController = TextEditingController();
+  final _clientIdController = TextEditingController();
+  final _clientSecretController = TextEditingController();
   String? _error;
   bool _loading = false;
   String _selectedProviderId = 'theoldreader';
@@ -380,8 +401,50 @@ class _LoginPageState extends State<LoginPage> {
   bool get _isBasicAuth =>
       _selectedProviderInfo?.authTypes.contains(AuthType.basicAuth) ?? false;
 
+  bool get _isOAuth2 =>
+      _selectedProviderInfo?.authTypes.contains(AuthType.oauth2) ?? false;
+
   bool get _requiresBaseUrl =>
       _selectedProviderInfo?.requiresBaseUrl ?? false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _apiKeyController.dispose();
+    _baseUrlController.dispose();
+    _clientIdController.dispose();
+    _clientSecretController.dispose();
+    super.dispose();
+  }
+
+  void _authorizeOAuth2() async {
+    final clientId = _clientIdController.text.trim();
+    if (clientId.isEmpty) {
+      setState(() => _error = 'Informe o Client ID.');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final clientSecret = _clientSecretController.text.trim();
+      final provider = ProviderRegistry.create(_selectedProviderId);
+      if (provider == null) throw Exception('Provider não disponível');
+      final config = await FeedlyAuth.authorize(clientId, clientSecret: clientSecret);
+      final result = await provider.authenticate(config);
+      if (result.success) {
+        await ProviderSettings.setActiveProvider(_selectedProviderId);
+        await ProviderSettings.saveAuthConfig(_selectedProviderId, config);
+        if (widget.onLogin != null) widget.onLogin!(provider);
+        return;
+      }
+      setState(() {
+        _error = result.error ?? 'Falha na autorização.';
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() { _error = 'Erro: $e'; _loading = false; });
+    }
+  }
 
   void _login() async {
     setState(() {
@@ -499,6 +562,10 @@ class _LoginPageState extends State<LoginPage> {
       availableProviders: _availableProviders,
       isApiKeyAuth: _isApiKeyAuth,
       requiresBaseUrl: _requiresBaseUrl,
+      isOAuth2: _isOAuth2,
+      clientIdController: _clientIdController,
+      clientSecretController: _clientSecretController,
+      onOAuth2Authorize: _isOAuth2 && !_loading ? _authorizeOAuth2 : null,
       onProviderChanged: (id) => setState(() {
         _selectedProviderId = id;
         _error = null;

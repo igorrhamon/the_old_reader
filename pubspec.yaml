@@ -45,6 +45,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   flutter_html: ^3.0.0
   home_widget: ^0.7.0
+  flutter_web_auth_2: ^4.0.0
 
 dev_dependencies:
   flutter_test:
