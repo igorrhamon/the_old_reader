@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/feed_provider.dart';
 import '../providers/provider_registry.dart';
 import '../services/provider_settings.dart';
@@ -76,10 +80,16 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final content = await widget.provider.exportOpml();
       if (!mounted) return;
-      final msg = content.isNotEmpty
-          ? 'OPML exportado com sucesso (${content.length} bytes)'
-          : 'Erro ao exportar OPML';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (content.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nenhum dado para exportar')),
+        );
+        return;
+      }
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/subscriptions.opml');
+      await file.writeAsString(content);
+      await Share.shareXFiles([XFile(file.path)], text: 'Exportar assinaturas OPML');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

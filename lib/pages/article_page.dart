@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import '../providers/feed_provider.dart';
 import '../models/article.dart';
 
@@ -175,9 +176,15 @@ class _ArticlePageState extends State<ArticlePage> {
                   const Divider(color: Color(0xFF3A3A3C)),
                   const SizedBox(height: 20),
                   if (htmlContent.isNotEmpty)
-                    Text(
-                      htmlContent,
-                      style: const TextStyle(color: _textPrimary, fontSize: 16, height: 1.6),
+                    Html(
+                      data: htmlContent,
+                      style: {
+                        'body': Style(
+                          color: _textPrimary,
+                          fontSize: FontSize(16),
+                          lineHeight: LineHeight(1.6),
+                        ),
+                      },
                     )
                   else
                     const Text(
