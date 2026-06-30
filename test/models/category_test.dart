@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_old_reader/models/category.dart';
+import 'package:feedflow/models/category.dart';
 
 void main() {
   group('Category Model', () {

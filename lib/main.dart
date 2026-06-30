@@ -538,13 +538,13 @@ class _LoginPageState extends State<LoginPage> {
 
   void _onForgotPassword() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funcionalidade de recuperação de senha em breve.')),
+      const SnackBar(content: Text('Acesse o site do seu provedor para recuperar a senha')),
     );
   }
 
   void _onSignUp() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funcionalidade de cadastro em breve.')),
+      const SnackBar(content: Text('Acesse o site do seu provedor para criar uma conta')),
     );
   }
 

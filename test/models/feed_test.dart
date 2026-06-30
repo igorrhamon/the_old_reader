@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_old_reader/models/feed.dart';
+import 'package:feedflow/models/feed.dart';
 
 void main() {
   group('Feed Model', () {

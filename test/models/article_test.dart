@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_old_reader/models/article.dart';
+import 'package:feedflow/models/article.dart';
 
 void main() {
   group('Article Model', () {

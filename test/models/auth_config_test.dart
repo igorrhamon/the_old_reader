@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_old_reader/providers/auth/auth_config.dart';
+import 'package:feedflow/providers/auth/auth_config.dart';
 
 void main() {
   group('GoogleLoginAuthConfig', () {

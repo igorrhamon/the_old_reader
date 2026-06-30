@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_old_reader/providers/inoreader/inoreader_provider.dart';
-import 'package:the_old_reader/providers/feed_provider.dart';
-import 'package:the_old_reader/providers/auth/auth_config.dart';
+import 'package:feedflow/providers/inoreader/inoreader_provider.dart';
+import 'package:feedflow/providers/feed_provider.dart';
+import 'package:feedflow/providers/auth/auth_config.dart';
 
 void main() {
   group('InoreaderProvider', () {

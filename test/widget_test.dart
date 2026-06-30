@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:the_old_reader/pages/login_screen.dart';
-import 'package:the_old_reader/providers/provider_registry.dart';
-import 'package:the_old_reader/providers/feed_provider.dart';
+import 'package:feedflow/pages/login_screen.dart';
+import 'package:feedflow/providers/provider_registry.dart';
+import 'package:feedflow/providers/feed_provider.dart';
 
 void main() {
   setUp(() {

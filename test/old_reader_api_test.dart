@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:the_old_reader/services/old_reader_api.dart';
+import 'package:feedflow/services/old_reader_api.dart';
 
 http.Response _jsonResponse(dynamic body, {int status = 200}) {
   return http.Response(jsonEncode(body), status, headers: {
