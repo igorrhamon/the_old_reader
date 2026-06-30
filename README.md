@@ -1,10 +1,10 @@
 <div align="center">
 
-# 📰 Multi RSS Reader
+# FeedFlow
 
-**Cliente Flutter multi-provider para leitura de RSS — 8 providers com interface unificada**
+**Cliente Flutter multi-provider para leitura de RSS — 9 providers com interface unificada**
 
-> Suporta: The Old Reader, Inoreader, FreshRSS, Miniflux, TT-RSS, Feedbin, NewsBlur e OPML local.
+> Suporta: The Old Reader, Inoreader, FreshRSS, Miniflux, TT-RSS, Feedbin, NewsBlur, Feedly e OPML local.
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.7+-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.7+-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
@@ -24,7 +24,7 @@
 
 ## ✨ Sobre
 
-Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva. O app suporta **8 providers RSS** através de uma interface comum, permitindo conectar-se à sua conta preferida com uma única interface.
+Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva. O app suporta **9 providers RSS** através de uma interface comum, permitindo conectar-se à sua conta preferida com uma única interface.
 
 > 📖 Documentação técnica completa em [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -39,6 +39,7 @@ Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva
 | **Tiny Tiny RSS** | Custom API | ✅ | Email/Senha |
 | **Feedbin** | REST API | ❌ | Email/Senha |
 | **NewsBlur** | Custom API | ✅ | Email/Senha |
+| **Feedly** | REST API | ❌ | OAuth2 |
 | **Local OPML** | File-based | N/A | Nenhum |
 
 ### Funcionalidades
@@ -68,8 +69,8 @@ Acompanhe seus feeds RSS favoritos com uma interface limpa, rápida e responsiva
 
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/the_old_reader.git
-cd the_old_reader
+git clone https://github.com/seu-usuario/feedflow.git
+cd feedflow
 
 # Instale as dependências Flutter
 flutter pub get
@@ -123,8 +124,8 @@ flutter test --reporter expanded
 flutter analyze
 
 # Testes E2E com Playwright (requer proxy e variáveis de ambiente)
-export the_old_reader_email="seu@email.com"
-export the_old_reader_password="sua_senha"
+export feedflow_email="seu@email.com"
+export feedflow_password="sua_senha"
 npx playwright test
 ```
 
@@ -142,7 +143,7 @@ lib/
 ├── providers/
 │   ├── feed_provider.dart             # Abstract FeedProvider interface
 │   ├── provider_registry.dart         # Provider factory/registry
-│   ├── provider_init.dart             # Provider registration (all 8)
+│   ├── provider_init.dart             # Provider registration (all 9)
 │   ├── auth/
 │   │   └── auth_config.dart           # Freezed auth config classes
 │   ├── theoldreader/
@@ -159,6 +160,9 @@ lib/
 │   │   └── feedbin_provider.dart
 │   ├── newsblur/
 │   │   └── newsblur_provider.dart
+│   ├── feedly/
+│   │   ├── feedly_provider.dart
+│   │   └── feedly_auth.dart
 │   └── local_opml/
 │       └── local_opml_provider.dart
 ├── services/
@@ -204,8 +208,12 @@ tests/
 | **HTTP Client** | `http` ^1.2.1 |
 | **Parsing RSS** | `xml` ^6.3.0 |
 | **Renderização HTML** | `flutter_html` ^3.0.0 |
+| **Compartilhar** | `share_plus` ^10.0.0 |
+| **Caminho temporário** | `path_provider` ^2.1.0 |
 | **Credenciais** | `flutter_secure_storage` |
 | **Persistência** | `shared_preferences` |
+| **Widget** | `home_widget` ^0.7.0 |
+| **OAuth2** | `flutter_web_auth_2` ^4.0.0 |
 | **Proxy** | Node.js + Express |
 | **Testes E2E** | Playwright |
 
