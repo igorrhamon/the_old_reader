@@ -260,69 +260,63 @@ class FeedlyProvider implements FeedProvider {
     );
   }
 
-  // --- Not implemented (Phase 1) ---
+  @override
+  Future<FeedResult> addFeed(String feedUrl, {String? category}) async =>
+      FeedResult(success: false, error: 'Adicionar feed não disponível para Feedly nesta versão');
 
   @override
-  Future<FeedResult> addFeed(String feedUrl, {String? category}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> removeFeed(String feedId) => throw UnimplementedError();
+  Future<void> removeFeed(String feedId) =>
+      throw UnsupportedError('Remover feed não suportado para Feedly');
 
   @override
   Future<void> renameFeed(String feedId, String newTitle) =>
-      throw UnimplementedError();
+      throw UnsupportedError('Renomear feed não suportado para Feedly');
 
   @override
   Future<void> moveFeed(String feedId, String? categoryId) =>
-      throw UnimplementedError();
+      throw UnsupportedError('Mover feed não suportado para Feedly');
 
   @override
-  Future<CategoryResult> createCategory(String name) =>
-      throw UnimplementedError();
+  Future<CategoryResult> createCategory(String name) async =>
+      CategoryResult(success: false, error: 'Criar categoria não disponível para Feedly nesta versão');
 
   @override
   Future<void> renameCategory(String categoryId, String newName) =>
-      throw UnimplementedError();
+      throw UnsupportedError('Renomear categoria não suportado para Feedly');
 
   @override
   Future<void> deleteCategory(String categoryId) =>
-      throw UnimplementedError();
+      throw UnsupportedError('Deletar categoria não suportado para Feedly');
 
   @override
-  Future<Article?> getArticle(String articleId) =>
-      throw UnimplementedError();
+  Future<Article?> getArticle(String articleId) async => null;
 
   @override
-  Future<List<Article>> getArticlesByIds(List<String> ids) =>
-      throw UnimplementedError();
+  Future<List<Article>> getArticlesByIds(List<String> ids) async => [];
 
   @override
-  Future<void> markAllAsRead(String streamId, {DateTime? before}) =>
-      throw UnimplementedError();
+  Future<void> markAllAsRead(String streamId, {DateTime? before}) async {}
 
   @override
   Future<ArticleListResult> search(
     String query, {
     int limit = 20,
     String? continuation,
-  }) =>
-      throw UnimplementedError();
+  }) async =>
+      ArticleListResult(articles: [], continuation: null);
 
   @override
-  Future<String> exportOpml() => throw UnimplementedError();
+  Future<String> exportOpml() async => '';
 
   @override
-  Future<OpmlImportResult> importOpml(String opmlContent) =>
-      throw UnimplementedError();
+  Future<OpmlImportResult> importOpml(String opmlContent) async =>
+      OpmlImportResult(success: false, errors: ['OPML não suportado para Feedly']);
 
   @override
-  Future<Map<String, dynamic>> getPreferences() =>
-      throw UnimplementedError();
+  Future<Map<String, dynamic>> getPreferences() async => {};
 
   @override
-  Future<void> setPreference(String key, String value) =>
-      throw UnimplementedError();
+  Future<void> setPreference(String key, String value) async {}
 
   // --- Private helpers ---
 
