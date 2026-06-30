@@ -183,14 +183,16 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
           child: Text('Leitura', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
         ),
-        SwitchListTile(
+        ListTile(
           title: const Text('Marcar como lido ao rolar'),
           subtitle: const Text('Marca artigos como lidos quando saem da tela'),
-          value: _markReadOnScroll,
-          onChanged: (value) {
-            AppSettings.setMarkReadOnScroll(value);
-            setState(() => _markReadOnScroll = value);
-          },
+          trailing: Switch(
+            value: _markReadOnScroll,
+            onChanged: (value) {
+              AppSettings.setMarkReadOnScroll(value);
+              setState(() => _markReadOnScroll = value);
+            },
+          ),
         ),
         const Divider(),
         const Padding(
