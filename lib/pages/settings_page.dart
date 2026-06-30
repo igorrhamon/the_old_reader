@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../providers/feed_provider.dart';
 import '../providers/provider_registry.dart';
 import '../services/provider_settings.dart';
+import '../services/app_settings.dart';
 
 class SettingsPage extends StatefulWidget {
   final FeedProvider provider;
@@ -32,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, bool> _connectedProviders = {};
   bool _loadingProviders = true;
   bool? _isHealthy;  // null = verificando, true = ok, false = erro
+  bool _markReadOnScroll = false;
 
   @override
   void initState() {
@@ -39,6 +41,14 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadCategories();
     _loadConnectedProviders();
     _checkHealth();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final markReadOnScroll = await AppSettings.getMarkReadOnScroll();
+    if (mounted) {
+      setState(() => _markReadOnScroll = markReadOnScroll);
+    }
   }
 
   Future<void> _loadConnectedProviders() async {
@@ -167,6 +177,20 @@ class _SettingsPageState extends State<SettingsPage> {
           leading: const Icon(Icons.logout, color: Colors.red),
           title: const Text('Sair', style: TextStyle(color: Colors.red)),
           onTap: widget.onLogout,
+        ),
+        const Divider(),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+          child: Text('Leitura', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+        ),
+        SwitchListTile(
+          title: const Text('Marcar como lido ao rolar'),
+          subtitle: const Text('Marca artigos como lidos quando saem da tela'),
+          value: _markReadOnScroll,
+          onChanged: (value) {
+            AppSettings.setMarkReadOnScroll(value);
+            setState(() => _markReadOnScroll = value);
+          },
         ),
         const Divider(),
         const Padding(
