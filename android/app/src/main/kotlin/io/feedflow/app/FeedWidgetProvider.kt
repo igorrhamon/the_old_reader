@@ -23,7 +23,6 @@ class FeedWidgetProvider : AppWidgetProvider() {
 
     companion object {
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            // home_widget 0.7.0 saves data in "HomeWidgetPreferences" with raw keys (no prefix)
             val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
             val views = RemoteViews(context.packageName, R.layout.feed_widget)
 
@@ -63,7 +62,6 @@ class FeedWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // Refresh button
             val refreshIntent = Intent(context, FeedWidgetProvider::class.java).apply {
                 action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
@@ -74,7 +72,6 @@ class FeedWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_refresh, refreshPi)
 
-            // Open app intent for header
             val openIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
