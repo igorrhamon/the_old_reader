@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../providers/feed_provider.dart';
 import '../models/feed.dart';
 import '../models/article.dart';
+import '../services/app_settings.dart';
 import 'article_page.dart';
 
 const _accent = Color(0xFFFF6B2C);
@@ -29,6 +30,11 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
   Set<String> favoriteIds = {};
   late final AnimationController _staggerCtrl;
   late final Animation<double> _staggerAnim;
+  bool _markReadOnScroll = false;
+  final Map<String, GlobalKey> _itemKeys = {};
+  final Set<String> _seenArticleIds = {};
+  final Set<String> _pendingMarkRead = {};
+  double _lastScrollPixels = 0;
 
   @override
   void initState() {
@@ -43,13 +49,24 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
     );
     _loadArticles();
     _loadFavorites();
+    _loadSettings();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _loadSettings() async {
+    final markReadOnScroll = await AppSettings.getMarkReadOnScroll();
+    if (mounted) {
+      setState(() => _markReadOnScroll = markReadOnScroll);
+    }
   }
 
   @override
   void dispose() {
     _staggerCtrl.dispose();
     _scrollController.dispose();
+    _itemKeys.clear();
+    _seenArticleIds.clear();
+    _pendingMarkRead.clear();
     super.dispose();
   }
 
@@ -59,6 +76,39 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         !_loadingMore &&
         _continuation != null) {
       _loadMore();
+    }
+
+    if (_markReadOnScroll) {
+      _updateSeenArticles();
+      final currentPixels = _scrollController.position.pixels;
+      if (currentPixels > _lastScrollPixels) {
+        _markScrolledPastArticles();
+      }
+      _lastScrollPixels = currentPixels;
+    }
+  }
+
+  void _updateSeenArticles() {
+    for (final entry in _itemKeys.entries) {
+      if (entry.value.currentContext != null) {
+        _seenArticleIds.add(entry.key);
+      }
+    }
+  }
+
+  void _markScrolledPastArticles() {
+    for (final articleId in _seenArticleIds) {
+      final key = _itemKeys[articleId];
+      if (key?.currentContext == null && !_pendingMarkRead.contains(articleId)) {
+        final index = articles.indexWhere((a) => a.id == articleId);
+        if (index != -1 && !articles[index].isRead) {
+          _pendingMarkRead.add(articleId);
+          widget.provider.markAsRead(articleId);
+          setState(() {
+            articles[index] = articles[index].copyWith(isRead: true);
+          });
+        }
+      }
     }
   }
 
@@ -195,6 +245,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
           final isRead = article.isRead;
 
           final delay = (index * 0.05).clamp(0.0, 0.7);
+          final itemKey = _itemKeys.putIfAbsent(article.id, () => GlobalKey());
 
           return FadeTransition(
             opacity: Tween<double>(begin: 0, end: 1).animate(
@@ -217,6 +268,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
                 onTap: () => _openArticle(context, article),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
+                  key: itemKey,
                   decoration: BoxDecoration(
                     color: _cardBg,
                     borderRadius: BorderRadius.circular(12),
