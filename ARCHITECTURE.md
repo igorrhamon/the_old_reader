@@ -1,8 +1,8 @@
-# Multi-Provider RSS Architecture
+# FeedFlow Architecture
 
 ## Overview
 
-Multi-provider RSS architecture for the Old Reader Flutter app, supporting 8 RSS providers through a common `FeedProvider` interface.
+Multi-provider RSS architecture for the FeedFlow Flutter app, supporting 9 RSS providers through a common `FeedProvider` interface.
 
 ## Providers Supported
 
@@ -15,8 +15,8 @@ Multi-provider RSS architecture for the Old Reader Flutter app, supporting 8 RSS
 | **Tiny Tiny RSS** | Session/Basic | Yes | Configurable | ✅ Implemented |
 | **Feedbin** | Basic Auth | No | Fixed | ✅ Implemented |
 | **NewsBlur** | Basic Auth | Yes | Configurable | ✅ Implemented |
+| **Feedly** | OAuth2 | No | Fixed | ✅ Implemented |
 | **Local OPML** | File | N/A | N/A | ✅ Implemented |
-| Feedly | OAuth2 | No | Fixed | 🔜 Planned |
 
 ---
 
@@ -49,11 +49,17 @@ Multi-provider RSS architecture for the Old Reader Flutter app, supporting 8 RSS
 - [x] Auth config persistence for all types
 - [x] 96/96 tests passing
 
-### Phase 4: Future
-- [ ] Feedly (OAuth2)
-- [ ] Provider selection in Settings page
-- [ ] Provider health/status indicators
-- [ ] Clean up legacy dead code files
+### Phase 4: Production Readiness ✅
+- [x] FeedlyProvider (OAuth2, read-only — graceful returns for unimplemented methods)
+- [x] FeedlyAuth (OAuth2 authorization + token refresh)
+- [x] ApplicationId renamed to `io.feedflow.app`
+- [x] Release signing config with keystore.properties fallback
+- [x] ProGuard/R8 enabled for release builds
+- [x] `android:allowBackup="false"` with data extraction rules
+- [x] HTML rendering with `flutter_html` in article page
+- [x] OPML export with `share_plus` file sharing
+- [x] Package renamed from `the_old_reader` to `feedflow`
+- [x] 111 tests passing
 
 ---
 
@@ -207,7 +213,7 @@ enum AuthType { googleLogin, oauth2, apiKey, basicAuth, localFile }
 
 ### Provider-Specific Configs (Freezed classes)
 - `GoogleLoginAuthConfig` - The Old Reader (email/password → token)
-- `OAuth2AuthConfig` - Feedly (client_id, secret, tokens) - planned
+- `OAuth2AuthConfig` - Feedly (client_id, secret, tokens)
 - `ApiKeyAuthConfig` - Inoreader, Miniflux (api key + optional base URL)
 - `BasicAuthConfig` - FreshRSS, TT-RSS, Feedbin, NewsBlur (username/password + optional base URL)
 - `LocalOpmlAuthConfig` - Local OPML (file path)
@@ -278,7 +284,7 @@ class ProviderRegistry {
 ```
 
 ### Initialization (lib/providers/provider_init.dart)
-All 8 providers registered:
+All 9 providers registered:
 ```dart
 void initializeProviders() {
   ProviderRegistry.register('theoldreader', ...);  // GoogleLogin
@@ -289,6 +295,7 @@ void initializeProviders() {
   ProviderRegistry.register('feedbin', ...);        // Basic Auth
   ProviderRegistry.register('newsblur', ...);       // Basic Auth, self-hosted
   ProviderRegistry.register('local_opml', ...);     // File-based
+  ProviderRegistry.register('feedly', ...);         // OAuth2
 }
 ```
 
@@ -354,6 +361,13 @@ class ProviderSettings {
 - Story hashes instead of integer IDs
 - Folder-based organization
 
+### FeedlyProvider (lib/providers/feedly/)
+- REST API at `https://cloud.feedly.com`
+- OAuth2 authentication with token refresh via `FeedlyAuth`
+- Implemented: authenticate, logout, validateToken, getFeeds, getCategories, getArticles, getUnreadCounts, markAsRead, markAsUnread, starArticle, unstarArticle, getStarredArticles
+- Graceful returns (not crashes) for unimplemented methods: addFeed, removeFeed, renameFeed, moveFeed, createCategory, renameCategory, deleteCategory, getArticle, getArticlesByIds, markAllAsRead, search, exportOpml, importOpml, getPreferences, setPreference
+- `supportsWebProxy: false` (direct API calls only)
+
 ### LocalOpmlProvider (lib/providers/local_opml/)
 - File-based, no network
 - Parses OPML files for feed lists
@@ -365,11 +379,12 @@ class ProviderSettings {
 
 The login screen dynamically adapts based on the selected provider:
 
-1. **Provider Dropdown**: Shows all 8 registered providers
+1. **Provider Dropdown**: Shows all 9 registered providers
 2. **API Key providers** (Inoreader, Miniflux): Shows API Key field
 3. **Basic Auth providers** (FreshRSS, TT-RSS, Feedbin, NewsBlur): Shows Email/Password fields
 4. **Self-hosted providers** (FreshRSS, Miniflux, TT-RSS, NewsBlur): Shows base URL field
 5. **The Old Reader**: Shows Email/Password fields
+6. **Feedly**: Shows OAuth2 authorization button (Client ID + optional Client Secret)
 
 ---
 
@@ -395,7 +410,7 @@ lib/
 ├── providers/
 │   ├── feed_provider.dart           # Abstract FeedProvider interface
 │   ├── provider_registry.dart       # Provider factory/registry
-│   ├── provider_init.dart           # Provider registration (all 8)
+│   ├── provider_init.dart           # Provider registration (all 9)
 │   ├── auth/
 │   │   └── auth_config.dart         # Freezed auth config classes
 │   ├── theoldreader/
@@ -412,28 +427,34 @@ lib/
 │   │   └── feedbin_provider.dart
 │   ├── newsblur/
 │   │   └── newsblur_provider.dart
+│   ├── feedly/
+│   │   ├── feedly_provider.dart
+│   │   └── feedly_auth.dart
 │   └── local_opml/
 │       └── local_opml_provider.dart
 ├── services/
 │   ├── provider_settings.dart       # Credential/settings storage
 │   └── old_reader_api.dart          # Legacy API (used by TheOldReaderProvider)
+├── widget/
+│   └── feed_widget_service.dart     # Home screen widget (home_widget)
 └── pages/                           # All pages use FeedProvider
     ├── login_screen.dart
     ├── home_page.dart
     ├── feed_articles_page.dart
-    ├── article_page.dart
+    ├── article_page.dart            # HTML rendering via flutter_html
     ├── favorites_page.dart
     ├── folders_page.dart
     ├── folder_feeds_page.dart
     ├── add_feed_page.dart
     ├── subscriptions_page.dart
     ├── search_page.dart
-    └── settings_page.dart
+    └── settings_page.dart           # OPML export via share_plus
 
 test/
 ├── models/                          # Model unit tests
 ├── providers/                       # Provider unit tests
-│   └── inoreader/
+│   ├── inoreader/
+│   └── feedly/
 ├── widget_test.dart
 ├── favorites_manager_test.dart
 └── old_reader_api_test.dart
@@ -456,7 +477,7 @@ test/
 
 ## Tests
 
-- **96 unit tests** passing
+- **111 unit tests** passing
 - Model tests: Feed, Article, Category, AuthConfig, ProviderRegistry
-- Provider tests: TheOldReader, Inoreader (properties, auth, interface compliance)
+- Provider tests: TheOldReader, Inoreader, Feedly (properties, auth, interface compliance, graceful returns)
 - Widget tests: LoginScreen (dynamic form switching)
