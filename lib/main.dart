@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
 import 'providers/feed_provider.dart';
@@ -5,6 +7,7 @@ import 'providers/provider_init.dart';
 import 'providers/provider_registry.dart';
 
 import 'providers/auth/auth_config.dart';
+import 'services/background_sync_scheduler.dart';
 import 'services/provider_settings.dart';
 import 'providers/feedly/feedly_auth.dart';
 
@@ -20,6 +23,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FeedWidgetService.initialize();
   initializeProviders();
+  if (Platform.isAndroid) {
+    await BackgroundSyncScheduler.initialize();
+  }
   runApp(const MyApp());
 }
 
