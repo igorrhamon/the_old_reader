@@ -246,6 +246,7 @@ class InoreaderProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     try {
       var url = '$_baseUrlResolved/stream/contents/${Uri.encodeComponent(streamId)}?n=$limit';

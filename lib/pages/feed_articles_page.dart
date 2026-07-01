@@ -10,6 +10,8 @@ const _textPrimary = Color(0xFFF2F2F7);
 const _textSecondary = Color(0xFF8E8E93);
 const _cardBg = Color(0xFF1C1C1E);
 
+enum ArticleFilter { all, unreadOnly, readOnly }
+
 class FeedArticlesPage extends StatefulWidget {
   final FeedProvider provider;
   final Feed feed;
@@ -31,6 +33,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
   late final AnimationController _staggerCtrl;
   late final Animation<double> _staggerAnim;
   bool _markReadOnScroll = false;
+  ArticleFilter _filter = ArticleFilter.all;
   final Map<String, GlobalKey> _itemKeys = {};
   final Set<String> _seenArticleIds = {};
   final Set<String> _pendingMarkRead = {};
@@ -103,16 +106,33 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         final index = articles.indexWhere((a) => a.id == articleId);
         if (index != -1 && !articles[index].isRead) {
           _pendingMarkRead.add(articleId);
-          widget.provider.markAsRead(articleId);
           setState(() {
             articles[index] = articles[index].copyWith(isRead: true);
           });
+          _markAsReadWithRollback(articleId);
         }
       }
     }
   }
 
+  Future<void> _markAsReadWithRollback(String articleId) async {
+    try {
+      await widget.provider.markAsRead(articleId);
+    } catch (_) {
+      if (!mounted) return;
+      final idx = articles.indexWhere((a) => a.id == articleId);
+      setState(() {
+        if (idx != -1) articles[idx] = articles[idx].copyWith(isRead: false);
+        _pendingMarkRead.remove(articleId);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao marcar artigo como lido.')),
+      );
+    }
+  }
+
   Future<void> _loadArticles() async {
+    print('[FeedArticlesPage] _loadArticles called. filter=$_filter, feed=${widget.feed.id}');
     setState(() {
       loading = true;
       error = null;
@@ -121,7 +141,10 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
       final result = await widget.provider.getArticles(
         streamId: widget.feed.id,
         limit: 20,
+        excludeRead: _filter == ArticleFilter.unreadOnly,
+        includeOnlyRead: _filter == ArticleFilter.readOnly,
       );
+      print('[FeedArticlesPage] _loadArticles result: ${result.articles.length} articles, cont=${result.continuation}');
       setState(() {
         articles..clear()..addAll(result.articles);
         _continuation = result.continuation;
@@ -144,6 +167,8 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         streamId: widget.feed.id,
         limit: 20,
         continuation: _continuation,
+        excludeRead: _filter == ArticleFilter.unreadOnly,
+        includeOnlyRead: _filter == ArticleFilter.readOnly,
       );
       setState(() {
         articles.addAll(result.articles);
@@ -198,6 +223,16 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
     ).then((_) {
       setState(() {});
     });
+  }
+
+  void _setFilter(ArticleFilter filter) {
+    print('[FeedArticlesPage] _setFilter called: $filter (current=$_filter)');
+    setState(() {
+      _filter = filter;
+      articles.clear();
+      _continuation = null;
+    });
+    _loadArticles();
   }
 
   @override
@@ -346,6 +381,34 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         ),
         actions: [
           IconButton(
+            icon: Icon(
+              _filter == ArticleFilter.unreadOnly
+                  ? Icons.mark_email_unread
+                  : _filter == ArticleFilter.readOnly
+                      ? Icons.mark_email_read
+                      : Icons.filter_list,
+              color: _filter == ArticleFilter.unreadOnly
+                  ? Theme.of(context).colorScheme.primary
+                  : _filter == ArticleFilter.readOnly
+                      ? Theme.of(context).colorScheme.secondary
+                      : _textPrimary,
+            ),
+            tooltip: _filter == ArticleFilter.unreadOnly
+                ? 'Apenas não lidos'
+                : _filter == ArticleFilter.readOnly
+                    ? 'Apenas lidos'
+                    : 'Filtrar artigos',
+            onPressed: () {
+              final next = _filter == ArticleFilter.all
+                  ? ArticleFilter.unreadOnly
+                  : _filter == ArticleFilter.unreadOnly
+                      ? ArticleFilter.readOnly
+                      : ArticleFilter.all;
+              print('[FeedArticlesPage] Filter button pressed: $_filter -> $next');
+              _setFilter(next);
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.done_all),
             tooltip: 'Marcar todos como lidos',
             color: _textPrimary,
@@ -353,7 +416,23 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
           ),
         ],
       ),
-      body: content,
+      body: Column(
+        children: [
+          if (_filter != ArticleFilter.all)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: FilterChip(
+                label: Text(
+                  _filter == ArticleFilter.unreadOnly ? 'Não lidos' : 'Lidos',
+                ),
+                onSelected: (_) => _setFilter(ArticleFilter.all),
+                onDeleted: () => _setFilter(ArticleFilter.all),
+                selected: true,
+              ),
+            ),
+          Expanded(child: content),
+        ],
+      ),
     );
   }
 }

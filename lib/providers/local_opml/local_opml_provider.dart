@@ -122,6 +122,7 @@ class LocalOpmlProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     return ArticleListResult(articles: []);
   }

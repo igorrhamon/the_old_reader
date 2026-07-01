@@ -258,6 +258,7 @@ class OldReaderApi {
     int? nt,
     int? ot,
     String? exclude,
+    String? include,
   }) async {
     final params = <String, String>{'output': 'json', 's': stream};
     if (n != null) params['n'] = n.toString();
@@ -266,6 +267,7 @@ class OldReaderApi {
     if (nt != null) params['nt'] = nt.toString();
     if (ot != null) params['ot'] = ot.toString();
     if (exclude != null) params['xt'] = exclude;
+    if (include != null) params['it'] = include;
     final query = params.entries
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
         .join('&');
@@ -276,6 +278,7 @@ class OldReaderApi {
   Future<http.Response> getItemIds({
     required String stream,
     String? exclude,
+    String? include,
     int? n,
     String? r,
     String? c,
@@ -284,6 +287,7 @@ class OldReaderApi {
   }) async {
     final params = <String, String>{'s': stream, 'output': 'json'};
     if (exclude != null) params['xt'] = exclude;
+    if (include != null) params['it'] = include;
     if (n != null) params['n'] = n.toString();
     if (r != null) params['r'] = r;
     if (c != null) params['c'] = c;

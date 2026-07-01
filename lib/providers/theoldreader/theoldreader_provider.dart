@@ -218,12 +218,15 @@ class TheOldReaderProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     try {
       final response = await api.getStreamContents(
         stream: streamId,
         n: limit,
         c: continuation,
+        exclude: excludeRead ? 'user/-/state/com.google/read' : null,
+        include: includeOnlyRead ? 'user/-/state/com.google/read' : null,
       );
 
       if (response.statusCode != 200) {

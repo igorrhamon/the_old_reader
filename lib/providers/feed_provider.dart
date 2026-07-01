@@ -33,6 +33,7 @@ abstract class FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   });
 
   Future<Article?> getArticle(String articleId);

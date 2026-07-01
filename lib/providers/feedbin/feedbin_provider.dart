@@ -234,6 +234,7 @@ class FeedbinProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     try {
       var url = '$_defaultBaseUrl/entries.json?feed_id=$streamId&per_page=$limit';
