@@ -3,6 +3,7 @@ import '../providers/feed_provider.dart';
 import '../models/feed.dart';
 import '../models/article.dart';
 import '../services/app_settings.dart';
+import '../infrastructure/db/database_provider.dart';
 import 'article_page.dart';
 
 const _accent = Color(0xFFFF6B2C);
@@ -149,11 +150,27 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         loading = false;
       });
       _staggerCtrl.forward(from: 0);
+      _shadowWriteWorkItems(result.articles);
     } catch (e) {
       setState(() {
         error = 'Erro: $e';
         loading = false;
       });
+    }
+  }
+
+  /// Fase 1 da evolução do FeedFlow (docs/EVOLUTION-PLAN.md): grava os
+  /// artigos também no banco local, sem afetar o fluxo visível da tela.
+  /// Fire-and-forget e nunca deve propagar erro para a UI.
+  Future<void> _shadowWriteWorkItems(List<Article> articles) async {
+    if (articles.isEmpty) return;
+    try {
+      if (!await AppSettings.getLocalPersistenceEnabled()) return;
+      final repo = DatabaseProvider.repository;
+      if (repo == null) return;
+      await repo.upsertFromArticles(articles, widget.provider.providerId);
+    } catch (_) {
+      // Shadow-write é best-effort; nunca deve quebrar a leitura de artigos.
     }
   }
 
@@ -172,6 +189,7 @@ class _FeedArticlesPageState extends State<FeedArticlesPage>
         articles.addAll(result.articles);
         _continuation = result.continuation;
       });
+      _shadowWriteWorkItems(result.articles);
     } finally {
       setState(() => _loadingMore = false);
     }
