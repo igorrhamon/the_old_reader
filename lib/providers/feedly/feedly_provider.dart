@@ -152,6 +152,7 @@ class FeedlyProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     try {
       var url =

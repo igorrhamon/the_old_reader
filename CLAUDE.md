@@ -4,151 +4,102 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**The Old Reader** is a Flutter client application for the [Old Reader API](https://github.com/theoldreader/api), a lightweight RSS reader. The app supports multiple platforms (web, Android, iOS, Windows, Linux, macOS).
+**FeedFlow** (package name `feedflow`, Android `applicationId io.feedflow.app`; the repo/directory is still named `the_old_reader` from before the rename) is a Flutter RSS reader client supporting **9 providers** through a common `FeedProvider` interface: The Old Reader, Inoreader, FreshRSS, Miniflux, Tiny Tiny RSS, Feedbin, NewsBlur, Feedly, and Local OPML. Supports web, Android, iOS, Windows, Linux, macOS.
 
-**Upcoming**: See **ARCHITECTURE.md** for planned multi-provider support (Feedly, Inoreader, FreshRSS, Miniflux, etc.). Currently only The Old Reader is fully implemented (Phase 1 foundation complete).
+See **ARCHITECTURE.md** for the full multi-provider design (domain models, per-provider quirks, file layout). This file covers commands and the patterns most likely to trip up an edit.
+
+Note: AGENTS.md still documents the pre-multi-provider architecture (single `OldReaderApi`, no `FeedProvider`). Treat ARCHITECTURE.md and this file as authoritative for anything related to providers; AGENTS.md's API-quirks section (pagination, feed ID formats, quickadd query-param handling) is still accurate for the underlying Old Reader / Google-Reader-compatible API.
 
 ## Architecture
 
 ### Layers
 
-- **Pages/UI** (`lib/pages/`): Material Design 3 UI components for login, feed viewing, article reading, and subscription management
-- **Services** (`lib/services/`): `OldReaderApi` class handles all HTTP communication with The Old Reader API
-- **Managers** (`lib/managers/`): State management for features like favorites
-- **Proxy** (`proxy/`): Optional Node.js Express server — only needed for web builds (CORS)
+- **`lib/models/`**: Freezed domain models — `Feed`, `Article`, `ArticleListResult`, `Category`, `UnreadCount` — shared across all providers.
+- **`lib/providers/`**: One directory per provider (`theoldreader/`, `inoreader/`, `freshrss/`, `miniflux/`, `ttrss/`, `feedbin/`, `newsblur/`, `feedly/`, `local_opml/`), each implementing the abstract `FeedProvider` interface (`lib/providers/feed_provider.dart`, 28+ methods). Plus:
+  - `provider_registry.dart` — factory/registry (`ProviderRegistry.create(id)`, `getAvailableProviders()`)
+  - `provider_init.dart` — registers all 9 providers at startup (`initializeProviders()`, called from `main()`)
+  - `auth/auth_config.dart` — Freezed auth config classes per auth type (`GoogleLoginAuthConfig`, `OAuth2AuthConfig`, `ApiKeyAuthConfig`, `BasicAuthConfig`, `LocalOpmlAuthConfig`)
+- **`lib/services/`**: `provider_settings.dart` (encrypted credential/settings storage via `flutter_secure_storage`, per-provider) and `old_reader_api.dart` (legacy raw HTTP client, now wrapped by `TheOldReaderProvider` rather than called directly by pages).
+- **`lib/pages/`**: Material Design 3 UI. All pages consume `FeedProvider`, not `OldReaderApi`, directly.
+- **`lib/managers/`**: `favorites_manager.dart` — local-only favorites state (SharedPreferences, not synced with providers).
+- **`lib/widget/feed_widget_service.dart`**: Android home-screen widget integration (`home_widget` package, app group `io.feedflow.app`).
+- **`proxy/`**: Node.js Express server, web builds only (CORS bypass for providers that don't send CORS headers).
 
 ### Key Architectural Patterns
 
-1. **Platform-aware API access**: 
-   - Native platforms (Android/iOS/Windows/Linux/macOS): call `https://theoldreader.com/reader/api/0` directly
-   - Web: uses local proxy `http://localhost:3000/proxy` (CORS bypass)
-   - Auto-detected via `kIsWeb` in `OldReaderApi.baseUrl`
-   - Override with `OldReaderApi.setOverrideBaseUrl(url)` or `--dart-define=PROXY_URL=...`
+1. **Provider abstraction**: Every provider implements `FeedProvider` (auth, feeds, categories, articles, read/star state, unread counts, search, OPML import/export, preferences). Pages and `main.dart` depend only on this interface, obtained via `ProviderRegistry.create(providerId)`. A provider not supporting a feature (e.g. Feedly's OAuth2, read-mostly API) returns a graceful empty/no-op result rather than throwing — check an existing provider's unimplemented methods for the expected shape before adding a new one.
 
-2. **Token-based authentication**: Users authenticate via `POST /accounts/ClientLogin` (Email/Passwd). Token is stored via `flutter_secure_storage` and sent as `Authorization: GoogleLogin auth=<token>` on every request.
+2. **Auth is per-provider-family, not universal**: `AuthType` enum = `googleLogin | oauth2 | apiKey | basicAuth | localFile`. Google-Reader-API-compatible providers (The Old Reader, Inoreader, FreshRSS) share request shape but differ in base URL and whether it's configurable (FreshRSS is self-hosted → user-supplied base URL; the others are fixed). `ProviderSettings` persists the chosen auth config (as `Object?`) and the active provider ID.
 
-3. **UI-driven architecture**: No persistent state management framework (no Riverpod/GetX). State is managed at the page/scaffold level. The `MainScaffold` in `main.dart` holds the `OldReaderApi` instance and passes it to child pages. Future work: migrate to Provider-based state management.
+3. **Platform-aware API access (web CORS)**: Native platforms call provider APIs directly; web routes through `http://localhost:3000/proxy` since browsers enforce CORS and most of these APIs don't send permissive headers. Auto-detected via `kIsWeb`. Override with `OldReaderApi.setOverrideBaseUrl(url)` / `--dart-define=PROXY_URL=...`. Feedly's provider (`supportsWebProxy: false`) always calls the API directly regardless of platform.
 
-4. **Feed identifiers**: Use `feed/<ObjectId>` format (e.g., `feed/00157a17b192950b65be3791`), not URLs. Categories/folders use label IDs like `user/-/label/FolderName` — extract name by stripping the prefix.
+4. **The Old Reader / Google Reader API identifiers**: feed IDs are `feed/<ObjectId>` (e.g. `feed/00157a17b192950b65be3791`), not URLs. Categories/folders are `user/-/label/FolderName` — strip the prefix to get the display name. Other providers (Miniflux, TT-RSS, Feedbin, NewsBlur) use their own native ID schemes (integers, story hashes, etc.) — don't assume the `feed/<id>` format outside the Google-Reader-compatible providers.
+
+5. **Adding a new provider**: create `lib/providers/{name}/{name}_provider.dart` implementing `FeedProvider`; add an auth config class in `auth_config.dart` if none of the existing 5 fit; register it in `provider_init.dart` with a `ProviderInfo` (set `requiresBaseUrl: true` if self-hosted); add tests under `test/providers/{name}/`. Login UI (`login_screen.dart`) adapts its form fields automatically based on `ProviderInfo.authTypes` / `requiresBaseUrl` — no separate UI wiring needed for the common auth types.
 
 ## Common Commands
 
 ### Setup & Dependencies
 
 ```bash
-# Install Dart/Flutter dependencies
-flutter pub get
-
-# Install Node.js dependencies (for proxy)
-npm install
-
-# Generate code (Freezed, JSON serialization)
-flutter pub run build_runner build
-
-# Clean generated files if needed
-flutter pub run build_runner clean
+flutter pub get                          # Dart/Flutter deps
+npm install                               # proxy deps (web only)
+flutter pub run build_runner build       # regenerate Freezed/json_serializable code after touching lib/models or auth_config
+flutter pub run build_runner clean       # if codegen gets stuck
 ```
 
-### Running the App
+### Running
 
 ```bash
-# Run on Android emulator/device
-flutter run
+flutter run                               # Android/iOS/desktop
 
-# Run on web with proxy (separate terminals needed)
-flutter run -d web-server --web-port 8000 --web-hostname 127.0.0.1
-# In another terminal:
-node proxy/proxy.js
+# Web (needs proxy running separately for CORS):
+node proxy/proxy.js                       # terminal 1
+flutter run -d web-server --web-port 8000 --web-hostname 127.0.0.1   # terminal 2
 
-# Run web and proxy together (automated startup)
-# Windows:
-.\direct-launcher.bat
-# or (PowerShell):
-pwsh .\start-web-app.ps1
-# or (macOS/Linux):
-./direct-launcher.sh
+# Combined web + proxy launcher:
+.\direct-launcher.bat        # Windows
+pwsh .\start-web-app.ps1     # PowerShell
+./direct-launcher.sh         # macOS/Linux
+
+node proxy/proxy-debug.js    # proxy with verbose logging
 ```
 
-### Proxy (Web Only)
-
-Only needed for web builds (bypasses CORS restrictions).
+### Building
 
 ```bash
-# Start proxy on localhost:3000
-node proxy/proxy.js
-
-# Debug mode with verbose logging
-node proxy/proxy-debug.js
-
-# Test feed addition endpoint
-node proxy/test-quickadd.js
-```
-
-### Building for Production
-
-```bash
-# Android (split APKs for different architectures)
-# On Windows, set JAVA_HOME first:
+# Windows requires JAVA_HOME set before any Android build:
 $env:JAVA_HOME = "$env:USERPROFILE\Android\jdk17-extracted\jdk17"
+
+flutter build apk --debug --split-per-abi     # fast Android debug build
 flutter build apk --release --split-per-abi
-
-# Or debug APKs (faster to build):
-flutter build apk --debug --split-per-abi
-
-# iOS
 flutter build ios --release
-
-# Web
 flutter build web --release
-
-# Windows
 flutter build windows --release
-
-# Linux
 flutter build linux --release
-
-# macOS
 flutter build macos --release
 ```
 
 ### Testing
 
 ```bash
-# Run all Flutter widget tests
-flutter test
-
-# Run a single widget test file
-flutter test test/path/to/test_file.dart
-
-# Run widget tests with verbose output
+flutter test --reporter expanded          # all unit/widget tests (test/models, test/providers/*, widget_test.dart, etc.)
+flutter test test/providers/feedly/feedly_provider_test.dart   # single test file
 flutter test --verbose
 
-# Run Playwright E2E tests (web only)
-# Prerequisites: proxy running, environment variables set
+# Playwright E2E (web only; env var names still use the pre-rename prefix, not "feedflow_*"):
 export the_old_reader_email="your@email.com"
 export the_old_reader_password="your_password"
-npx playwright test
-
-# Run specific Playwright test
+npx playwright test                       # requires proxy running on :3000
 npx playwright test login.spec.ts
-
-# Or skip Playwright tests if env vars not set
-npx playwright test --grep "@skip"
-
-# Run Playwright in debug mode
+npx playwright test --grep "@skip"        # skip if env vars unset
 npx playwright test --debug
 ```
 
-### Code Quality & Analysis
+### Code Quality
 
 ```bash
-# Analyze Dart code for issues (no typecheck)
-flutter analyze
-
-# Full lint + analysis
-flutter pub get && flutter analyze
-
-# Check for outdated dependencies
+flutter analyze          # static analysis, no separate typecheck step
 flutter pub outdated
 ```
 
@@ -156,144 +107,72 @@ flutter pub outdated
 
 ```
 lib/
-  ├── main.dart                    # App entry point, MainScaffold navigation
-  ├── services/
-  │   └── old_reader_api.dart      # HTTP client, all API methods
-  ├── managers/
-  │   └── favorites_manager.dart   # Favorites state
-  └── pages/
-      ├── login_screen.dart        # Login UI
-      ├── home_page.dart           # Feed list
-      ├── feed_articles_page.dart   # Articles for a feed
-      ├── article_page.dart        # Single article view
-      ├── favorites_page.dart      # Starred/bookmarked articles
-      ├── add_feed_page.dart       # Add new subscription
-      └── subscriptions_page.dart  # Manage feeds
+├── main.dart                        # Entry point, initializeProviders(), MyApp/theme
+├── models/                          # Feed, Article, ArticleListResult, Category, UnreadCount (Freezed)
+├── providers/
+│   ├── feed_provider.dart           # Abstract FeedProvider interface
+│   ├── provider_registry.dart       # Factory/registry
+│   ├── provider_init.dart           # Registers all 9 providers
+│   ├── auth/auth_config.dart        # Per-auth-type Freezed config classes
+│   ├── theoldreader/  inoreader/  freshrss/  miniflux/  ttrss/
+│   ├── feedbin/  newsblur/  local_opml/
+│   └── feedly/                      # feedly_provider.dart + feedly_auth.dart (OAuth2 + refresh)
+├── services/
+│   ├── provider_settings.dart       # Encrypted per-provider credential/settings storage
+│   └── old_reader_api.dart          # Legacy raw HTTP client, wrapped by TheOldReaderProvider
+├── managers/favorites_manager.dart  # Local-only favorites (SharedPreferences)
+├── widget/feed_widget_service.dart  # Android home-screen widget
+└── pages/                           # login_screen, home_page, feed_articles_page(+_xml),
+                                      # article_page, favorites_page, folders_page,
+                                      # folder_feeds_page, add_feed_page, subscriptions_page,
+                                      # search_page, settings_page
 
-proxy/
-  ├── proxy.js                     # Main proxy server
-  ├── proxy-debug.js               # Debug version with extra logging
-  ├── config.json                  # Proxy configuration
-  ├── logs/                        # Proxy logs directory
-  └── test-quickadd.js             # Feed addition test script
-
-test/
-  └── widget_test.dart             # Flutter widget tests
-
-tests/
-  └── login.spec.ts                # Playwright E2E test
+proxy/           # proxy.js, proxy-debug.js, config.json, test-quickadd.js — web CORS only
+test/            # models/, providers/{feedly,inoreader}/, provider_registry_test.dart, widget_test.dart, ...
+tests/           # login.spec.ts (Playwright E2E, web only)
 ```
 
 ## Critical Implementation Details
 
-### API Token Handling
+### The Old Reader / Google Reader API quirks (apply to TheOldReader, Inoreader, FreshRSS providers)
 
-- Auth token obtained from `POST /accounts/ClientLogin` with Email/Passwd parameters
-- Sent as `Authorization: GoogleLogin auth=<token>` on every request
-- Stored via `flutter_secure_storage` (not just in memory)
+- Auth: `POST /accounts/ClientLogin` (Email/Passwd) → token sent as `Authorization: GoogleLogin auth=<token>` on every request.
+- `subscription/quickadd` requires `quickadd` as a **query parameter**, not in the request body — the proxy (`proxy/proxy.js`, ~line 100+) moves it from body to query string for web.
+- Pagination: `stream/items/ids` / `stream/contents` support `n` (limit, max 10000/1000), `c` (continuation), `nt`/`ot` (timestamps). `tag/list`, `subscription/list`, `unread-count` return everything at once — no pagination.
+- Article content can be JSON or Atom XML; `feed_articles_page.dart` tries JSON first, falls back to XML (`feed_articles_page_xml.dart`).
+- `getItemsContentsApi` batches item content fetches in groups of 250.
 
-### Proxy Query String Handling (Web Only)
+### Other providers
 
-The proxy has special logic for `subscription/quickadd`:
-- This endpoint requires `quickadd` as a **query parameter**, NOT in request body
-- The proxy extracts `quickadd` from request body and moves it to the query string
-- See `proxy/proxy.js` around line 100+ for implementation
+- **Miniflux**: distinct REST API (`/v1/...`), `X-Auth-Token` header, JSON objects rather than Google Reader shape.
+- **TT-RSS**: session-based auth (login returns `session_id`), POST-based API at `/api/`, integer IDs.
+- **Feedbin**: REST + Basic Auth, fixed base URL `https://api.feedbin.com/v2`, categories via "taggings".
+- **NewsBlur**: Basic Auth, story hashes instead of integer IDs, folder-based organization.
+- **Feedly**: OAuth2 via `FeedlyAuth` (authorize + token refresh), `https://cloud.feedly.com`; read-mostly — mutation methods (addFeed, createCategory, markAllAsRead, search, OPML, preferences, etc.) return gracefully rather than being implemented.
+- **Local OPML**: no network, parses an OPML file for a read-only feed list.
 
-### API Quirks
+### Dead code
 
-- **Feed identifiers**: Use `feed/<ObjectId>` format (e.g., `feed/00157a17b192950b65be3791`), not URLs
-- **Category/Label IDs**: Format like `user/-/label/FolderName` — extract name by stripping `user/-/label/` prefix
-- **Pagination**: `stream/items/ids` and `stream/contents` support pagination via `n` (limit, max 1000/10000), `c` (continuation), `nt`/`ot` (timestamps)
-- **No pagination endpoints**: `tag/list`, `subscription/list`, `unread-count` return all data at once
-- **Article content**: Can be JSON or Atom XML — `feed_articles_page.dart` tries JSON first, falls back to XML parsing
-- **Batch fetches**: `getItemsContentsApi` batches item content fetches in groups of 250
-
-### Web-Specific Concerns
-
-- Web version requires proxy running on `localhost:3000` to bypass CORS
-- Web builds served from `http://127.0.0.1:8000`
-- Android emulator also uses `localhost:3000` by default
-
-### Dead Code
-
-- Duplicate old files exist at `lib/` root level (e.g., `lib/home_page.dart`, `lib/favorites_page.dart`) that coexist with active versions in `lib/pages/`
-- These are dead code but still analyzed — avoid modifying them
+- Duplicate legacy files exist at `lib/` root (e.g. `lib/home_page.dart`, `lib/favorites_page.dart`) alongside the active versions in `lib/pages/`. Still picked up by `flutter analyze` — avoid modifying them.
 
 ### Navigation
 
-- 3 bottom tabs (Feeds, Favoritos, Config.) mapped via `_selectedIndex` (0-2)
-- "Pastas" (drawer) opens via `Navigator.push` (not IndexedStack) — adding to IndexedStack causes NavigationBar assertion failure
-- `AddFeedPage` opens via FAB on "Feeds" tab; returns `true` if feed was added
+- 3 bottom tabs (Feeds, Favoritos, Config.) via `_selectedIndex` (0-2).
+- "Pastas" (drawer) opens via `Navigator.push`, not `IndexedStack` — adding it to the `IndexedStack` breaks the `NavigationBar` assertion.
+- `AddFeedPage` opens via FAB on the Feeds tab; returns `true` when a feed was added.
 
-## Dependencies
+## Dependencies of note
 
-### Dart/Flutter
-
-- **Flutter SDK**: ^3.7.0
-- **http**: ^1.2.1 (HTTP client)
-- **provider**: ^6.1.2 (state management — not deeply integrated yet)
-- **freezed_annotation**: ^2.4.4 & **freezed**: ^2.5.7 (code generation for immutable models)
-- **json_annotation**: ^4.9.0 & **json_serializable**: ^6.9.0 (JSON serialization)
-- **xml**: ^6.3.0 (RSS/XML parsing)
-- **flutter_html**: ^3.0.0 (HTML rendering in articles)
-- **flutter_secure_storage**: ^9.2.4 (encrypted credential storage)
-- **shared_preferences**: ^2.2.2 (lightweight local persistence)
-- **flutter_lints**: ^5.0.0 (linting rules)
-
-### Node.js (Proxy — Web Only)
-
-- **express**: ^5.1.0 (web server)
-- **cors**: ^2.8.5 (CORS header support)
-- **node-fetch**: ^3.3.2 (HTTP requests from proxy to API)
-- **playwright**: ^1.52.0 (E2E testing)
-
-### Build Tools
-
-- **build_runner**: ^2.4.13 (code generation)
-- **Android JDK**: jdk17 (required for Android builds on Windows; set `$env:JAVA_HOME` before build)
-
-## Testing Notes
-
-- **Widget tests**: Run locally with `flutter test`, no special setup needed
-- **Playwright E2E tests**: Run against web version only (port 8000)
-  - Requires proxy running on port 3000
-  - Requires environment variables: `the_old_reader_email`, `the_old_reader_password`
-  - Skip tests with `@skip` tag if env vars not available
-  - Debug mode: `npx playwright test --debug`
-
-## Linting & Analysis
-
-- Flutter lints enabled via `flutter_lints: ^5.0.0`
-- Config in `analysis_options.yaml`
-- Run `flutter analyze` for static analysis (no type checking step)
-- No custom lint rules configured — uses Flutter defaults
-
-## Work in Progress & Future Roadmap
-
-### Architecture Evolution (See ARCHITECTURE.md)
-
-- **Phase 1** ✅ Complete: Domain models (Feed, Article, Category), FeedProvider interface, ProviderRegistry, TheOldReaderProvider wrapper
-- **Phase 2** In Progress: Migrate MainScaffold and pages to use FeedProvider abstraction
-- **Phase 3** Planned: Add support for Inoreader, FreshRSS (Google Reader API compatible), Feedly (OAuth2), and other providers
-- **Phase 4** Planned: Provider selection UI in Settings
-
-### Immediate Improvements
-
-- Migrate from raw `setState` in `MainScaffold` to Provider-based state management
-- Implement Freezed models for Articles, Feeds, Categories to ensure immutability
-- Move token storage to `flutter_secure_storage` (currently imported but not fully utilized)
-- Implement article caching/pagination for better performance
-- Add local search/filtering support
-
-### Not Yet Implemented
-
-- OAuth2 integration (planned for multi-provider support)
-- Offline article viewing
-- Push notifications
-- Dark mode (Material Design 3 supports it but not integrated)
-- Keyboard shortcuts for web version
+- **freezed** / **json_serializable**: all domain models and auth configs — run `build_runner` after editing any `@freezed` class.
+- **flutter_secure_storage**: encrypted credential storage for every provider's auth config.
+- **flutter_web_auth_2**: OAuth2 flow for Feedly.
+- **flutter_html**: article HTML rendering.
+- **share_plus** / **path_provider**: OPML export.
+- **home_widget**: Android home-screen widget.
+- **provider** (^6.1.2): declared but not deeply integrated — most state is still local `setState`.
+- **Android JDK 17** required for Windows Android builds; set `$env:JAVA_HOME` first (see Building above).
 
 ## Cross-References
 
-- See **AGENTS.md** for detailed technical notes (API quirks, navigation patterns, file structure)
-- See **ARCHITECTURE.md** for multi-provider design and implementation roadmap
+- **ARCHITECTURE.md** — full multi-provider design: domain model definitions, `FeedProvider` interface, per-provider implementation notes, "Adding a New Provider" checklist.
+- **AGENTS.md** — API quirks reference for the Google-Reader-compatible API; its architecture section predates the multi-provider refactor and describes the old single-`OldReaderApi` design.

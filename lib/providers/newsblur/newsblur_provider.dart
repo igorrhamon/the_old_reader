@@ -259,6 +259,7 @@ class NewsBlurProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     try {
       final response = await http.get(

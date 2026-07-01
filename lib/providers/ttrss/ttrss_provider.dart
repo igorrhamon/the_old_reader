@@ -286,6 +286,7 @@ class TtrssProvider implements FeedProvider {
     DateTime? newerThan,
     DateTime? olderThan,
     bool excludeRead = false,
+    bool includeOnlyRead = false,
   }) async {
     try {
       final params = <String, dynamic>{
